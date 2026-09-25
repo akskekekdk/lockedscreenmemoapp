@@ -1,0 +1,41 @@
+name: 과거 재무 받기 (백테스트용)
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "사업연도 범위 (예: 2018-2024)"
+        default: "2018-2024"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 과거 사업보고서 재무 받기
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python -m screener.fetch_history --years "${{ inputs.years }}" --out out/cache/dart-history.json
+
+      # gh-pages의 다른 파일은 그대로 두고 cache/dart-history.json만 추가한다.
+      - name: gh-pages에 저장
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: out
+          keep_files: true
+          commit_message: "과거 재무 캐시 업데이트"
