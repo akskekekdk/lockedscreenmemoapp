@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
@@ -16,7 +17,7 @@ import androidx.core.content.ContextCompat
 
 /**
  * 잠금화면에 항상 떠 있는 메모 알림.
- * - 메모 하나를 알림 하나로 띄워 한 줄씩 보여주고
+ * - 알림 하나 안에 메모를 한 줄씩 보여주고
  * - "한 줄 메모" 버튼으로 잠금을 풀지 않고 바로 입력(인라인 답장)할 수 있다.
  */
 object MemoNotifier {
@@ -25,9 +26,14 @@ object MemoNotifier {
     private val OLD_CHANNEL_IDS = listOf("lockscreen_memo")
     const val KEY_TEXT = "memo_text"
 
-    // 한 앱의 알림이 4개 이상 쌓이면 안드로이드가 자동으로 하나로 묶어 다시 한 줄만 보이게 되므로 3개까지만 띄운다
-    private const val MAX_ROWS = 3
-    private val ROW_IDS = listOf(1, 2, 3)
+    const val NOTIFICATION_ID = 1
+
+    // 예전 버전은 메모마다 알림을 따로 띄웠다(2, 3번). 폰이 앱별로 묶어버려서 하나로 되돌렸다.
+    private val OLD_ROW_IDS = listOf(2, 3)
+
+    // 접힌 알림(잠금화면)에 들어가는 줄 수. 접힌 알림은 높이가 정해져 있어 3줄이 한계다.
+    private const val COLLAPSED_LINES = 3
+    private const val EXPANDED_LINES = 8
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -76,9 +82,10 @@ object MemoNotifier {
         val alarms = context.getSystemService(AlarmManager::class.java)
         val refreshIntent = actionIntent(context, MemoActionReceiver.ACTION_REPOST, 4)
         val manager = NotificationManagerCompat.from(context)
+        OLD_ROW_IDS.forEach { manager.cancel(it) }
         if (!MemoStore.isLockScreenEnabled(context)) {
             alarms.cancel(refreshIntent)
-            ROW_IDS.forEach { manager.cancel(it) }
+            manager.cancel(NOTIFICATION_ID)
             return
         }
         if (!canNotify(context)) return
@@ -86,13 +93,8 @@ object MemoNotifier {
 
         val now = System.currentTimeMillis()
         val memos = MemoStore.sorted(context, now)
-        val shown = memos.take(MAX_ROWS)
-        val rows = if (shown.isEmpty()) listOf(null) else shown
-        rows.forEachIndexed { index, memo ->
-            @Suppress("MissingPermission")
-            manager.notify(ROW_IDS[index], buildRow(context, memo, index, now))
-        }
-        ROW_IDS.drop(rows.size).forEach { manager.cancel(it) }
+        @Suppress("MissingPermission")
+        manager.notify(NOTIFICATION_ID, build(context, memos, now))
 
         // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.
         // 정확할 필요는 없어서 정확한 알람 권한 없이 쓸 수 있는 방식을 쓴다.
@@ -102,22 +104,43 @@ object MemoNotifier {
     }
 
     /**
-     * 메모 하나 = 알림 한 줄. 잠금화면에서 알림은 접힌 채로 보이므로
-     * 메모마다 따로 띄워야 여러 개가 한 줄씩 모두 보인다.
-     * 입력 버튼은 맨 위(index 0) 알림에만 단다. [memo]가 null이면 빈 안내 알림.
+     * 알림 하나 안에 메모를 한 줄씩 직접 그린다.
+     * 메모마다 알림을 따로 띄우면 폰이 앱별로 묶어 "3" 처럼 뭉쳐 보이므로 하나만 쓴다.
+     * 제목 없이 내용만 보이도록 기본 템플릿 대신 직접 만든 레이아웃을 쓴다.
      */
-    private fun buildRow(context: Context, memo: Memo?, index: Int, now: Long): android.app.Notification {
+    private fun build(context: Context, memos: List<Memo>, now: Long): android.app.Notification {
+        val lines = memos.map { DueFormat.line(context, it, now) }
+            .ifEmpty { listOf(context.getString(R.string.empty_hint)) }
+
         val openQuickMemo = PendingIntent.getActivity(
             context, 2,
             Intent(context, QuickMemoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val remoteInput = RemoteInput.Builder(KEY_TEXT)
+            .setLabel(context.getString(R.string.input_hint))
+            .build()
+        val replyAction = NotificationCompat.Action.Builder(
+            R.drawable.ic_memo,
+            context.getString(R.string.action_reply),
+            actionIntent(context, MemoActionReceiver.ACTION_ADD, 1),
+        )
+            .addRemoteInput(remoteInput)
+            .setAllowGeneratedReplies(false)
+            .setAuthenticationRequired(false) // 잠금 해제 없이 입력 허용
+            .build()
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_memo)
-            // 제목 없이 메모 내용만 한 줄로 보이도록 제목 자리에 내용을 넣는다
-            .setContentTitle(memo?.let { DueFormat.line(context, it, now) } ?: context.getString(R.string.empty_hint))
+            // 직접 만든 화면을 못 쓰는 곳(워치 등)에서 보일 내용
+            .setContentTitle(lines.first())
+            .setContentText(lines.drop(1).joinToString(" / ").ifEmpty { null })
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(linesView(context, lines.take(COLLAPSED_LINES)))
+            .setCustomBigContentView(linesView(context, lines.take(EXPANDED_LINES)))
             .setContentIntent(openQuickMemo)
+            .addAction(replyAction)
+            .addAction(R.drawable.ic_memo, context.getString(R.string.action_quick), openQuickMemo)
             .setOngoing(true)
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
             .setDeleteIntent(actionIntent(context, MemoActionReceiver.ACTION_REPOST, 3))
@@ -125,27 +148,21 @@ object MemoNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOnlyAlertOnce(true)
-            // 같은 중요도의 알림은 시각이 최근일수록 위에 오므로, 메모 순서대로 1ms씩 과거로 둔다
-            .setWhen(now - index)
             .setShowWhen(false)
+            .build()
+    }
 
-        if (index == 0) {
-            val remoteInput = RemoteInput.Builder(KEY_TEXT)
-                .setLabel(context.getString(R.string.input_hint))
-                .build()
-            val replyAction = NotificationCompat.Action.Builder(
-                R.drawable.ic_memo,
-                context.getString(R.string.action_reply),
-                actionIntent(context, MemoActionReceiver.ACTION_ADD, 1),
+    private fun linesView(context: Context, lines: List<String>): RemoteViews {
+        val view = RemoteViews(context.packageName, R.layout.notification_memos)
+        lines.forEach { text ->
+            view.addView(
+                R.id.lines,
+                RemoteViews(context.packageName, R.layout.notification_line).apply {
+                    setTextViewText(R.id.line, text)
+                },
             )
-                .addRemoteInput(remoteInput)
-                .setAllowGeneratedReplies(false)
-                .setAuthenticationRequired(false) // 잠금 해제 없이 입력 허용
-                .build()
-            builder.addAction(replyAction)
-                .addAction(R.drawable.ic_memo, context.getString(R.string.action_quick), openQuickMemo)
         }
-        return builder.build()
+        return view
     }
 
     private fun actionIntent(context: Context, action: String, requestCode: Int): PendingIntent {
