@@ -1,5 +1,6 @@
 package com.lockmemo.app
 
+import android.animation.ArgbEvaluator
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.DatePickerDialog
@@ -14,6 +15,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 /** 메모 날짜·시간 표시와 선택. */
 object DueFormat {
@@ -36,6 +38,22 @@ object DueFormat {
     }
 
     const val DAY_MS = 86_400_000L
+
+    /** 정해진 시각 앞뒤 2시간 동안 색이 점점 진해진다. */
+    const val URGENT_WINDOW_MS = 2 * 60 * 60_000L
+    private const val URGENT_START = 0xFFFFA23A.toInt() // 2시간 남았을 때: 주황
+    private const val URGENT_END = 0xFFFF2D2D.toInt()   // 딱 그 시각: 빨강
+
+    /** 0(2시간 이상 차이) ~ 1(바로 지금). 정해진 시각 전후 모두 같은 방식. */
+    fun urgency(due: Long, now: Long = System.currentTimeMillis()): Float =
+        (1f - abs(due - now).toFloat() / URGENT_WINDOW_MS).coerceAtLeast(0f)
+
+    /** 가까울수록 주황 → 빨강. 2시간 밖이면 null(기본 색). */
+    fun urgencyColor(due: Long, now: Long = System.currentTimeMillis()): Int? {
+        val t = urgency(due, now)
+        if (t <= 0f) return null
+        return ArgbEvaluator().evaluate(t, URGENT_START, URGENT_END) as Int
+    }
 
     /**
      * 남은 시간. 하루 이내면 "2시간 30분 남음" / "15분 남음", 그보다 멀면 "D-3". 지났으면 null.

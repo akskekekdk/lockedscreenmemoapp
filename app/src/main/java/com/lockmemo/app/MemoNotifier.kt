@@ -30,6 +30,7 @@ object MemoNotifier {
 
 
     const val NOTIFICATION_ID = 1
+    private const val COLOR_STEP_MS = 5 * 60_000L
 
     // 접힌 알림(잠금화면)은 높이가 정해져 있어 3줄까지, 펼치면 10줄까지
     private const val COLLAPSED_LINES = 3
@@ -93,7 +94,7 @@ object MemoNotifier {
         }
 
         val now = System.currentTimeMillis()
-        val memos = MemoStore.all(context)
+        val memos = MemoStore.displayOrder(context, now)
         val wallpaperMode = MemoStore.isWallpaperMode(context)
         if (wallpaperMode) {
             LockWallpaper.update(context, memos.map { DueFormat.line(context, it, now) })
@@ -116,12 +117,19 @@ object MemoNotifier {
 
         // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.
         // 정확할 필요는 없어서 정확한 알람 권한 없이 쓸 수 있는 방식을 쓴다.
-        // 하루 전 시점에는 "D-1" → 실시간 카운트다운으로 바뀌어야 하므로 그 시각도 후보에 넣는다
-        val nextDue = memos.mapNotNull { it.due }
-            .flatMap { listOf(it, it - DueFormat.DAY_MS) }
+        // 하루 전 시점에는 "D-1" → 실시간 카운트다운으로, 2시간 전·후에는 색 변화가 시작·끝나므로 그 시각들도 후보
+        val dues = memos.mapNotNull { it.due }
+        val nextDue = dues
+            .flatMap { listOf(it, it - DueFormat.DAY_MS, it - DueFormat.URGENT_WINDOW_MS, it + DueFormat.URGENT_WINDOW_MS) }
             .filter { it > now }
             .minOrNull()
-        val next = minOf(nextDue ?: Long.MAX_VALUE, DueFormat.nextMidnight(now))
+        // 색이 변하는 구간(앞뒤 2시간)에 있는 메모가 있으면 5분마다 다시 그려 색을 조금씩 바꾼다
+        val coloring = dues.any { DueFormat.urgency(it, now) > 0f }
+        val next = minOf(
+            nextDue ?: Long.MAX_VALUE,
+            DueFormat.nextMidnight(now),
+            if (coloring) now + COLOR_STEP_MS else Long.MAX_VALUE,
+        )
         alarms.setAndAllowWhileIdle(AlarmManager.RTC, next, refreshIntent)
     }
 
@@ -186,6 +194,12 @@ object MemoNotifier {
         rows.forEach { row ->
             val line = RemoteViews(context.packageName, R.layout.notification_line)
             line.setTextViewText(R.id.line, row.text)
+            // 정해진 시각 앞뒤 2시간: 가까울수록 주황 → 빨강
+            row.due?.let { DueFormat.urgencyColor(it, now) }?.let { color ->
+                line.setTextColor(R.id.line, color)
+                line.setTextColor(R.id.countdown, color)
+                line.setTextColor(R.id.remain_static, color)
+            }
             val left = row.due?.let { it - now } ?: 0
             when {
                 left <= 0 -> Unit // 날짜 없음 또는 지남: 남은 시간 표시 없음

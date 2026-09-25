@@ -105,7 +105,7 @@ class MainActivity : Activity() {
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
-            adapter.notifyItemRangeChanged(0, adapter.itemCount)
+            if (!dragging) reload() // 시간이 흐르면 가까운 순서·색이 바뀐다
             dueChooser.refreshLabel()
             ticker.postDelayed(this, 30_000)
         }
@@ -249,7 +249,7 @@ class MainActivity : Activity() {
 
     @SuppressLint("NotifyDataSetChanged") // 저장소에서 목록 전체를 다시 읽어 온다
     private fun reload() {
-        adapter.memos = MemoStore.all(this).toMutableList()
+        adapter.memos = MemoStore.displayOrder(this).toMutableList()
         adapter.notifyDataSetChanged()
         emptyView.visibility = if (adapter.memos.isEmpty()) View.VISIBLE else View.GONE
         updateHeader()
@@ -262,15 +262,25 @@ class MainActivity : Activity() {
     }
 
     /** 꾹 눌러서 위아래로 끌면 순서가 바뀐다. 손을 떼면 저장하고 잠금화면도 갱신. */
-    private val reorder = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-        ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0,
-    ) {
-        private var dragFrom = RecyclerView.NO_POSITION
+    private var dragging = false
+
+    /**
+     * 꾹 눌러서 위아래로 끌면 순서가 바뀐다. 날짜 있는 메모는 시간순 자동 정렬이라
+     * 날짜 없는 메모끼리만 옮길 수 있다. 손을 떼면 저장하고 잠금화면도 갱신.
+     */
+    private val reorder = ItemTouchHelper(object : ItemTouchHelper.Callback() {
+        private fun isUndated(holder: RecyclerView.ViewHolder) =
+            adapter.memos.getOrNull(holder.bindingAdapterPosition)?.due == null
+
+        override fun getMovementFlags(rv: RecyclerView, holder: RecyclerView.ViewHolder): Int =
+            if (isUndated(holder)) makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) else 0
+
+        override fun canDropOver(rv: RecyclerView, current: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) =
+            isUndated(target)
 
         override fun onMove(rv: RecyclerView, from: RecyclerView.ViewHolder, to: RecyclerView.ViewHolder): Boolean {
             val a = from.bindingAdapterPosition
             val b = to.bindingAdapterPosition
-            if (dragFrom == RecyclerView.NO_POSITION) dragFrom = a
             adapter.memos.add(b, adapter.memos.removeAt(a))
             adapter.notifyItemMoved(a, b)
             return true
@@ -279,6 +289,7 @@ class MainActivity : Activity() {
         override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
             super.onSelectedChanged(viewHolder, actionState)
             if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                dragging = true
                 (viewHolder as? MemoHolder)?.card?.apply {
                     elevation = 10f * resources.displayMetrics.density
                     scaleX = 1.02f
@@ -294,12 +305,9 @@ class MainActivity : Activity() {
                 scaleX = 1f
                 scaleY = 1f
             }
-            val dragTo = viewHolder.bindingAdapterPosition
-            if (dragFrom != RecyclerView.NO_POSITION && dragTo != RecyclerView.NO_POSITION && dragFrom != dragTo) {
-                MemoStore.move(this@MainActivity, dragFrom, dragTo)
-                MemoNotifier.refresh(this@MainActivity)
-            }
-            dragFrom = RecyclerView.NO_POSITION
+            dragging = false
+            MemoStore.reorderUndated(this@MainActivity, adapter.memos.filter { it.due == null })
+            MemoNotifier.refresh(this@MainActivity)
         }
 
         override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
@@ -328,7 +336,11 @@ class MainActivity : Activity() {
             holder.due.visibility = if (memo.due == null) View.GONE else View.VISIBLE
             if (memo.due != null) {
                 holder.due.text = getString(R.string.due_chip, DueFormat.withRemaining(this@MainActivity, memo.due))
-                holder.due.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
+                val now = System.currentTimeMillis()
+                holder.due.setTextColor(
+                    DueFormat.urgencyColor(memo.due, now)
+                        ?: getColor(if (memo.due < now) R.color.text_secondary else R.color.accent),
+                )
             }
             holder.time.text = getString(R.string.created_at, timeFormat.format(Date(memo.time)))
             holder.card.setOnClickListener {

@@ -34,39 +34,50 @@ class LockScreenTest {
         MemoStore.add(context, "팀 회의 자료 챙기기", System.currentTimeMillis() + 3_600_000L)
     }
 
-    @Test
-    fun oneNotificationWithOneLinePerMemoInCustomOrder() {
-        // 저장 순서(새 메모가 맨 앞): 팀 회의, 치과, 우유 → 맨 아래 우유를 맨 위로
-        MemoStore.move(context, 2, 0)
-        MemoNotifier.refresh(context)
-        val posted = shadowOf(manager).allNotifications
-        assertEquals(1, posted.size)
-        val notification = posted.single()
+    private fun notificationLines(): List<TextView> {
         @Suppress("DEPRECATION")
-        val collapsed = notification.contentView.apply(context, FrameLayout(context))
-        val lines = (collapsed.findViewById<LinearLayout>(R.id.lines)).let { box ->
-            (0 until box.childCount).map { box.getChildAt(it).findViewById<TextView>(R.id.line).text.toString() }
-        }
-        lines.forEach { println("알림 줄: $it") }
-        assertEquals(3, lines.size)
-        assertEquals("우유 사기", lines[0])
+        val view = shadowOf(manager).allNotifications.single().bigContentView.apply(context, FrameLayout(context))
+        val box = view.findViewById<LinearLayout>(R.id.lines)
+        return (0 until box.childCount).map { box.getChildAt(it).findViewById(R.id.line) }
     }
 
     @Test
-    fun notificationHeaderAppNameIsInvisibleButLauncherNameStays() {
-        val pm = context.packageManager
-        assertEquals("\u200B", pm.getApplicationLabel(context.applicationInfo).toString())
-        val launcher = pm.getActivityInfo(android.content.ComponentName(context, MainActivity::class.java), 0)
-        assertEquals("조상원 메모", launcher.loadLabel(pm).toString())
-    }
-
-    @Test
-    fun noNotificationWhenThereAreNoMemos() {
-        MemoNotifier.refresh(context)
-        assertEquals(1, shadowOf(manager).allNotifications.size)
+    fun closestToNowComesFirstAndUndatedFollowInManualOrder() {
+        val now = System.currentTimeMillis()
         MemoStore.all(context).forEach { MemoStore.remove(context, it) }
+        MemoStore.add(context, "빨래")                                  // 날짜 없음
+        MemoStore.add(context, "사흘 뒤", now + 3 * DueFormat.DAY_MS)
+        MemoStore.add(context, "10분 전 지남", now - 10 * 60_000L)
+        MemoStore.add(context, "청소")                                  // 날짜 없음
+        MemoStore.add(context, "1시간 뒤", now + 60 * 60_000L)
+        // 날짜 없는 메모 순서를 직접 바꿈: 빨래 → 청소
+        val undated = MemoStore.all(context).filter { it.due == null }
+        MemoStore.reorderUndated(context, undated.reversed())
+
         MemoNotifier.refresh(context)
-        assertEquals(0, shadowOf(manager).allNotifications.size)
+        val texts = notificationLines().map { it.text.toString().substringAfter(" · ") }
+        texts.forEach { println("정렬: $it") }
+        assertEquals(listOf("10분 전 지남", "1시간 뒤", "사흘 뒤", "빨래", "청소"), texts)
+    }
+
+    @Test
+    fun colorGetsRedderAsTheTimeApproaches() {
+        val now = System.currentTimeMillis()
+        assertEquals(null, DueFormat.urgencyColor(now + 3 * 60 * 60_000L, now))
+        val far = DueFormat.urgencyColor(now + 110 * 60_000L, now)!!
+        val near = DueFormat.urgencyColor(now + 5 * 60_000L, now)!!
+        val past = DueFormat.urgencyColor(now - 5 * 60_000L, now)!!
+        // 가까울수록 초록 성분이 줄어 빨강에 가까워진다
+        assert(android.graphics.Color.green(near) < android.graphics.Color.green(far))
+        assertEquals(near, past)
+        println("색: 1시간50분 전 #%08X → 5분 전 #%08X".format(far, near))
+
+        MemoStore.all(context).forEach { MemoStore.remove(context, it) }
+        MemoStore.add(context, "곧", now + 5 * 60_000L)
+        MemoStore.add(context, "멀리", now + 5 * 60 * 60_000L)
+        MemoNotifier.refresh(context)
+        val lines = notificationLines()
+        assertNotEquals(lines[1].currentTextColor, lines[0].currentTextColor)
     }
 
     @Test

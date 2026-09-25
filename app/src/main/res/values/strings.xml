@@ -18,7 +18,7 @@
     <string name="list_empty">아직 메모가 없어요\n위에 한 줄 적어보세요</string>
     <string name="delete">삭제</string>
     <string name="delete_confirm">\"%1$s\" 메모를 삭제할까요?</string>
-    <string name="list_help">눌러서 날짜·시간 변경  ·  꾹 눌러 끌어서 순서 변경</string>
+    <string name="list_help">가까운 일정부터  ·  눌러서 시간 변경  ·  날짜 없는 메모는 꾹 눌러 순서 변경</string>
     <string name="problem_notifications_off">알림이 꺼져 있어서 잠금화면에 메모가 표시되지 않아요.</string>
     <string name="problem_channel_off">\'잠금화면 메모\' 알림 종류가 꺼져 있어요.</string>
     <string name="problem_channel_silent">\'잠금화면 메모\' 알림이 무음으로 설정되어 있어요. 무음 알림은 잠금화면에서 숨겨져요. \'기본\'으로 바꿔주세요.</string>

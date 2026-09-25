@@ -2,6 +2,7 @@ package com.lockmemo.app
 
 import android.content.Context
 import org.json.JSONArray
+import kotlin.math.abs
 import org.json.JSONObject
 
 /** [time]: 작성 시각(식별자 겸용), [due]: 사용자가 지정한 날짜·시간(없으면 null) */
@@ -9,7 +10,8 @@ data class Memo(val time: Long, val text: String, val due: Long? = null)
 
 /**
  * 한 줄 메모를 SharedPreferences에 JSON 배열로 저장한다.
- * 저장된 순서가 곧 보여줄 순서다(앱에서 꾹 눌러 끌어서 바꿀 수 있음). 새 메모는 맨 앞.
+ * 날짜 없는 메모는 저장된 순서대로 보여준다(앱에서 꾹 눌러 끌어서 바꿀 수 있음). 새 메모는 맨 앞.
+ * 날짜 있는 메모는 [displayOrder]에서 지금과 가까운 순으로 자동 정렬한다.
  */
 object MemoStore {
     private const val PREFS = "memos"
@@ -48,13 +50,24 @@ object MemoStore {
         }
     }
 
-    /** [from] 위치의 메모를 [to] 위치로 옮긴다. */
+    /**
+     * 화면·잠금화면에 보여줄 순서.
+     * 날짜가 있는 메모는 지금 시각과의 차이(지났든 남았든)가 작은 것부터, 그 아래 날짜 없는 메모는 직접 정한 순서대로.
+     */
+    fun displayOrder(context: Context, now: Long = System.currentTimeMillis()): List<Memo> {
+        val memos = all(context)
+        val dated = memos.filter { it.due != null }.sortedBy { abs(it.due!! - now) }
+        return dated + memos.filter { it.due == null }
+    }
+
+    /** 날짜 없는 메모들의 순서를 [undated] 순서로 바꾼다(날짜 있는 메모는 자동 정렬이라 그대로). */
     @Synchronized
-    fun move(context: Context, from: Int, to: Int) {
-        val memos = all(context).toMutableList()
-        if (from !in memos.indices || to !in memos.indices || from == to) return
-        memos.add(to, memos.removeAt(from))
-        save(context, memos)
+    fun reorderUndated(context: Context, undated: List<Memo>) {
+        val memos = all(context)
+        val order = undated.map { it.time }
+        val rest = memos.filter { it.due == null && it.time !in order }
+        val byTime = memos.associateBy { it.time }
+        save(context, memos.filter { it.due != null } + order.mapNotNull { byTime[it] }.filter { it.due == null } + rest)
     }
 
     /** 줄바꿈은 공백으로 합쳐 항상 한 줄로 저장한다. 빈 메모면 false. */

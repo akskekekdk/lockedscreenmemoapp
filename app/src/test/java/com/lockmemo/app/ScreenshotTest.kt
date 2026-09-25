@@ -49,6 +49,38 @@ class ScreenshotTest {
     fun mainDarkWithSettings() = capture("screen-dark", openSettings = true)
 
     @Test
+    @Config(qualifiers = "+night")
+    fun notificationPreview() {
+        val context = RuntimeEnvironment.getApplication()
+        org.robolectric.Shadows.shadowOf(context).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        val now = System.currentTimeMillis()
+        MemoStore.add(context, "빨래 걷기")
+        MemoStore.add(context, "치과 예약", now + 3 * DueFormat.DAY_MS)
+        MemoStore.add(context, "택배 받기", now + 105 * 60_000L)
+        MemoStore.add(context, "약 먹기", now - 20 * 60_000L)
+        MemoStore.add(context, "팀 회의", now + 50 * 60_000L)
+        MemoStore.add(context, "버스 타기", now + 5 * 60_000L)
+        MemoNotifier.refresh(context)
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        @Suppress("DEPRECATION")
+        val remote = org.robolectric.Shadows.shadowOf(manager).allNotifications.single().bigContentView
+        val frame = android.widget.FrameLayout(context).apply {
+            setBackgroundColor(0xFF2A2830.toInt())
+            setPadding(48, 36, 48, 36)
+        }
+        frame.addView(remote.apply(context, frame))
+        val width = 1000
+        frame.measure(
+            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+        )
+        frame.layout(0, 0, width, frame.measuredHeight)
+        val bitmap = Bitmap.createBitmap(width, frame.measuredHeight, Bitmap.Config.ARGB_8888)
+        frame.draw(Canvas(bitmap))
+        File("build/notification-preview.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    @Test
     fun launcherIcon() {
         val context = RuntimeEnvironment.getApplication()
         val size = 432
