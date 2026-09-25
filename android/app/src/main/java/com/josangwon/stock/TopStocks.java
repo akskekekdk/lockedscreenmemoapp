@@ -39,7 +39,7 @@ final class TopStocks {
     static final String SORT_BUY = "buy";
     private static final String KEY_SORT = "sort";
     // 매수 관심 우선 정렬 순서 (웹앱 app.js의 SIGNAL_ORDER와 같게 유지)
-    private static final String[] SIGNAL_ORDER = {"매수 관심", "관망", "과열 주의", "추세 이탈"};
+    private static final String[] SIGNAL_ORDER = {"매수 관심", "후보", "관망", "과열 주의", "추세 이탈"};
 
     static String sort(Context c) {
         return prefs(c).getString(KEY_SORT, SORT_SCORE);

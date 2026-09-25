@@ -193,11 +193,12 @@ def test_build_report_end_to_end(tmp_path):
     assert "흑자전환" in hynix["flags"] and hynix["prev_rank"] == 1
     assert hynix["sector"] == "반도체"
     for s in report["stocks"]:
-        assert 0 <= s["tech_score"] <= 100 and s["signal"]
-        assert s["score"] == pytest.approx(0.6 * s["fund_score"] + 0.4 * s["tech_score"], abs=1e-3)
-        assert s["stop"] < s["price"] or s["stop"] < 1e9
+        assert 0 <= s["score"] <= 100 and s["signal"] == "매수 관심"  # 통과 종목이 2개뿐이라 둘 다 보유
+        assert s["score"] == pytest.approx(0.4 * s["s_value"] + 0.4 * s["s_momentum"] + 0.2 * s["s_low_vol"], abs=1e-3)
     assert report["regime"]["regime"] == "상승장" and report["regime"]["exposure"] == 1.0
-    assert sum(p["weight"] for p in report["portfolio"]) <= 1.0
+    assert {h["code"] for h in report["holdings"]} == {"005930", "000660"}
+    assert all(p["weight"] == 0.1 and p["stop"] == pytest.approx(p["entry_price"] * 0.85) for p in report["portfolio"])
+    assert [e["type"] for e in report["events"]] == ["in", "in"]
 
     saved = json.loads((tmp_path / "data" / "latest.json").read_text(encoding="utf-8"))
     assert saved == json.loads((tmp_path / "data" / "history" / "2026-09-25-pm.json").read_text(encoding="utf-8"))
@@ -205,10 +206,12 @@ def test_build_report_end_to_end(tmp_path):
     for f in ("index.html", "manifest.json", "icon-192.png"):
         assert (tmp_path / f).exists()
 
-    # 두 번째 실행은 캐시를 써서 DART 주요계정을 다시 부르지 않는다
+    # 두 번째 실행은 캐시를 써서 DART 주요계정을 다시 부르지 않고, 보유 목록을 이어받는다
     calls = dart.multi_calls
-    app.build_report(args, now, MARKET, "naver", dart, {}, FakeFeeds(), tmp_path / "cache")
+    ranks, holdings = app.previous_state(tmp_path)
+    again = app.build_report(args, now, MARKET, "naver", dart, ranks, FakeFeeds(), tmp_path / "cache", holdings)
     assert dart.multi_calls == calls
+    assert again["events"] == [] and again["holdings"] == report["holdings"]
 
 
 def test_cache_keeps_partial_progress(tmp_path):

@@ -137,16 +137,20 @@ def fundamentals_asof(row: dict, date: pd.Timestamp) -> dict | None:
         cur, prev = "", "_prev"          # 2025년 보고서
     elif date >= pd.Timestamp("2025-04-01"):
         cur, prev = "_prev", "_prev2"    # 2024년 보고서
+    elif date >= pd.Timestamp("2024-04-01"):
+        cur, prev = "_prev2", None       # 2023년 보고서 (전년 값이 없어 성장률 제외)
     else:
         return None
-    g = lambda k: row.get(k)  # noqa: E731
+    g = lambda k: row.get(k) if k is not None else None  # noqa: E731
+    pv = (lambda k: None) if prev is None else (lambda k: g(k + prev))  # noqa: E731
     out = {
         "net_income": g("net_income" + cur), "op_income": g("op_income" + cur),
-        "op_income_prev": g("op_income" + prev), "revenue": g("revenue" + cur),
-        "revenue_prev": g("revenue" + prev), "equity": g("equity" + cur),
-        "equity_prev": g("equity" + prev), "liabilities": g("liabilities" + cur),
+        "op_income_prev": pv("op_income"), "revenue": g("revenue" + cur),
+        "revenue_prev": pv("revenue"), "equity": g("equity" + cur),
+        "equity_prev": pv("equity"), "liabilities": g("liabilities" + cur),
     }
-    if any(v is None or (isinstance(v, float) and math.isnan(v)) for k, v in out.items() if k != "equity_prev"):
+    optional = {"equity_prev", "op_income_prev", "revenue_prev"}
+    if any(v is None or (isinstance(v, float) and math.isnan(v)) for k, v in out.items() if k not in optional):
         return None
     return out
 
@@ -179,8 +183,8 @@ def build_panel(prices, dart_rows, shares, sectors, dates) -> pd.DataFrame:
                     net_income=fa["net_income"], op_income=fa["op_income"], revenue=fa["revenue"], equity=fa["equity"],
                     per=rec["market_cap"] / fa["net_income"], pbr=rec["market_cap"] / fa["equity"],
                     roe=fa["net_income"] / eq_avg, debt_ratio=fa["liabilities"] / fa["equity"] * 100,
-                    rev_growth=scoring.cagr(fa["revenue"], fa["revenue_prev"], 1),
-                    op_growth=scoring.cagr(fa["op_income"], fa["op_income_prev"], 1),
+                    rev_growth=scoring.cagr(fa["revenue"], fa["revenue_prev"], 1) if fa["revenue_prev"] is not None else np.nan,
+                    op_growth=scoring.cagr(fa["op_income"], fa["op_income_prev"], 1) if fa["op_income_prev"] is not None else np.nan,
                 )
             rows.append(rec)
     return pd.DataFrame(rows)

@@ -111,6 +111,16 @@ def final_score(candidates: pd.DataFrame, cash: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values("score", ascending=False)
 
 
+def add_cash_flags(df: pd.DataFrame, cash: pd.DataFrame) -> pd.DataFrame:
+    """영업현금흐름·FCF·FCF 수익률과 경고 표시를 붙인다(점수에는 쓰지 않음)."""
+    df = df.copy()
+    df["ocf"] = cash["ocf"].reindex(df.index)
+    df["fcf"] = cash["fcf"].reindex(df.index)
+    df["fcf_yield"] = df["fcf"] / df["market_cap"]
+    df["flags"] = df.apply(flags, axis=1)
+    return df
+
+
 def flags(row) -> list[str]:
     out = []
     if row["pbr"] < 1 and row["roe"] < 0.08:

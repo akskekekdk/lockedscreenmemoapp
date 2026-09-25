@@ -1,9 +1,10 @@
 """조상원 주식 스크리너 실행.
 
-1) 시세·재무 수집 → 재무 점수(업종 내 상대 PER·PBR, ROE, 성장률, 부채비율, FCF)
-2) 재무 상위 후보에 기술적 분석(추세·모멘텀·RSI·MACD·볼린저·거래량·수급) → 종합 점수와 매매 신호
-3) 지수 추세·환율로 시장 국면을 판단하고 손절가·비중까지 포함한 포트폴리오 제안
-4) 정적 사이트용 JSON 출력
+1) 시세·재무 수집 → 흑자·유동성 조건 통과 종목 선정
+2) 통과 종목 전체의 일봉으로 모멘텀·변동성 계산
+3) 백테스트로 정한 점수(가치 40 + 모멘텀 40 + 저변동 20, screener/model.py)로 순위
+4) 보유 목록(10종목 동일 비중) 갱신: 20위 밖·-15% 손절일 때만 교체
+5) 정적 사이트용 JSON 출력 (시장 국면·수급·재무 지표는 참고 정보)
 
 사용법: DART_API_KEY=... python -m screener.main --out public
 """
@@ -16,6 +17,7 @@ import math
 import os
 import shutil
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -24,6 +26,7 @@ import pandas as pd
 
 from . import market as mk
 from . import scoring
+from . import model
 from . import technical as ta
 from .dart import MULTI_BATCH, DartClient, fundamentals_from_rows, latest_fiscal_year
 
@@ -33,13 +36,10 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 HISTORY_KEEP = 120  # 하루 2회 × 약 3달
 CACHE_MAX_AGE = timedelta(days=7)  # 연간 재무는 자주 안 바뀌므로 1주일간 재사용
 
-FUND_WEIGHT, TECH_WEIGHT = 0.6, 0.4  # 종합 점수 = 재무 60% + 기술 40%
-
 OUTPUT_FIELDS = [
     "code", "name", "market", "sector", "price", "change_pct", "market_cap",
     "per", "pbr", "roe", "rev_cagr", "op_cagr", "debt_ratio", "fcf", "fcf_yield",
-    "s_per", "s_pbr", "s_roe", "s_rev_cagr", "s_op_cagr", "s_debt_ratio", "s_fcf",
-    "fund_score", "flags", "fs_div", "year",
+    "flags", "fs_div", "year",
 ]
 
 
@@ -47,7 +47,6 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description="조상원 주식 스크리너")
     p.add_argument("--out", default="public", help="사이트 출력 폴더")
     p.add_argument("--top", type=int, default=30, help="발표할 종목 수")
-    p.add_argument("--candidates", type=int, default=80, help="FCF·기술적 분석을 할 재무 상위 후보 수")
     p.add_argument("--min-market-cap", type=float, default=1000e8, help="최소 시가총액(원)")
     p.add_argument("--min-trading-value", type=float, default=1e8, help="최소 당일 거래대금(원)")
     p.add_argument("--force", action="store_true", help="휴장일이어도 실행")
@@ -163,49 +162,29 @@ class DartCache:
         self.path.write_text(json.dumps(self.data, ensure_ascii=False), encoding="utf-8")
 
 
-def previous_ranks(out: Path) -> dict[str, int]:
+def previous_state(out: Path) -> tuple[dict[str, int], list[dict]]:
+    """직전 결과의 (종목별 순위, 보유 목록)."""
     try:
         prev = json.loads((out / "data" / "latest.json").read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-    return {s["code"]: s["rank"] for s in prev.get("stocks", [])}
+        return {}, []
+    holdings = prev.get("holdings") or []
+    return {s["code"]: s["rank"] for s in prev.get("stocks", [])}, holdings
 
 
-def analyze_technicals(candidates: pd.DataFrame, feeds) -> pd.DataFrame:
-    """후보별 기술 지표·점수·신호·손절가."""
-    inds, flows = {}, {}
-    for code in candidates.index:
+def load_price_factors(codes: list[str], feeds, workers: int = 8) -> pd.DataFrame:
+    """조건 통과 종목 전체의 일봉을 병렬로 받아 모멘텀·변동성 등을 계산한다."""
+    def one(code):
         daily = _safe(f"{code} 일봉", lambda: feeds.daily(code))
-        ind = ta.indicators(daily) if daily is not None else None
-        if ind:
-            inds[code] = ind
-            flows[code] = _safe(f"{code} 수급", lambda: feeds.flow(code))
-    if not inds:
-        return pd.DataFrame()
+        if daily is None or len(daily) < 2:
+            return code, None
+        return code, model.price_factors(daily)
 
-    momentum = pd.Series({c: i["mom_12_1"] for c, i in inds.items()}).rank(pct=True)
     rows = {}
-    for code, ind in inds.items():
-        pts = ta.tech_points(ind, momentum.get(code, math.nan), flows.get(code))
-        score = float(sum(pts.values()))
-        stop, stop_pct = ta.stop_loss(ind)
-        flow = flows.get(code) or {}
-        rows[code] = {
-            "tech_score": score,
-            "tech_points": pts,
-            "signal": ta.signal(ind, score),
-            "rsi": ind["rsi"],
-            "dist_ma200": ind["dist_ma200"],
-            "mom_12_1": ind["mom_12_1"],
-            "ret_3m": ind["ret_3m"],
-            "golden_recent": ind["golden_recent"],
-            "squeeze_breakout": ind["squeeze_breakout"],
-            "up_down_volume": ind["up_down_volume"],
-            "foreign_20d": flow.get("foreign"),
-            "institution_20d": flow.get("institution"),
-            "stop": stop,
-            "stop_pct": stop_pct,
-        }
+    with ThreadPoolExecutor(workers) as ex:
+        for code, f in ex.map(one, codes):
+            if f:
+                rows[code] = f
     return pd.DataFrame.from_dict(rows, orient="index")
 
 
@@ -215,11 +194,16 @@ def build_regime(feeds) -> dict:
         df = _safe(f"{name} 지수", lambda: feeds.index_daily(name))
         if df is not None and not df.empty:
             indices[name] = df
-    return ta.market_regime(indices, _safe("환율", feeds.usdkrw), _safe("시장 수급", feeds.market_flow))
+    regime = ta.market_regime(indices, _safe("환율", feeds.usdkrw), _safe("시장 수급", feeds.market_flow))
+    # 백테스트에서 국면에 따른 비중 축소는 수익만 깎았다 → 참고 정보로만 보여주고 비중은 줄이지 않는다.
+    regime["exposure"] = 1.0
+    if regime.get("usdkrw"):
+        regime["usdkrw"].pop("warning", None)
+    return regime
 
 
 def build_report(args, now: datetime, market: pd.DataFrame, source: str, dart: DartClient,
-                 prev: dict[str, int], feeds, cache_dir: Path) -> dict:
+                 prev_ranks: dict[str, int], feeds, cache_dir: Path, prev_holdings: list[dict] | None = None) -> dict:
     universe = market[[scoring.is_common_stock(c, n) for c, n in zip(market["code"], market["name"])]]
     universe = universe[universe["market_cap"] >= args.min_market_cap]
     log.info("시세 %d종목 → 보통주·시총 필터 후 %d종목", len(market), len(universe))
@@ -237,63 +221,56 @@ def build_report(args, now: datetime, market: pd.DataFrame, source: str, dart: D
     df = universe.merge(fundamentals, on="code")
     df["sector"] = df["code"].map(sectors)
     df = scoring.add_metrics(df)
-    passed = scoring.apply_filters(df, args.min_market_cap, args.min_trading_value)
+    passed = scoring.apply_filters(df, args.min_market_cap, args.min_trading_value).set_index("code", drop=False)
     log.info("재무 매칭 %d종목 → 흑자·유동성 필터 후 %d종목", len(df), len(passed))
 
-    ranked = scoring.preliminary_score(passed.set_index("code", drop=False))
-    candidates = ranked.head(args.candidates)
+    factors = load_price_factors(passed.index.tolist(), feeds)
+    log.info("가격 지표 %d/%d종목", len(factors), len(passed))
+    ranked = model.score(passed.join(factors, how="left"))
+
+    # 상위 종목만 FCF(참고·경고용)와 수급(참고용)을 조회한다.
+    top = ranked.head(args.top)
     try:
-        cash = cache.cash_flows(candidates)
+        cash = cache.cash_flows(top)
     finally:
         cache.save()
-    fund = scoring.final_score(candidates, cash).rename(columns={"score": "fund_score"})
+    top = scoring.add_cash_flags(top, cash)
 
-    tech = analyze_technicals(fund, feeds)
-    log.info("기술적 분석 %d/%d종목", len(tech), len(fund))
-    combined = fund.join(tech, how="left")
-    if "tech_score" not in combined:
-        combined["tech_score"] = math.nan
-    # 일봉이 모자란 신규 상장 등은 기술 점수 0점
-    combined["score"] = FUND_WEIGHT * combined["fund_score"] + TECH_WEIGHT * combined["tech_score"].fillna(0)
-    final = combined.sort_values("score", ascending=False).head(args.top)
-
+    holdings, events = model.update_holdings(prev_holdings or [], ranked, now.strftime("%Y-%m-%d"))
+    held = {h["code"] for h in holdings}
+    sig = model.signals(ranked, held)
     regime = build_regime(feeds)
 
     stocks = []
-    for rank, (code, row) in enumerate(final.iterrows(), start=1):
+    for code, row in top.iterrows():
+        flow = _safe(f"{code} 수급", lambda: feeds.flow(code)) or {}
         item = {f: scoring.clean(row.get(f)) for f in OUTPUT_FIELDS}
-        for f in ("score", "tech_score", "signal", "rsi", "dist_ma200", "mom_12_1", "ret_3m",
-                  "golden_recent", "squeeze_breakout", "up_down_volume",
-                  "foreign_20d", "institution_20d", "stop", "stop_pct"):
-            v = row.get(f)
-            item[f] = None if v is None or (isinstance(v, float) and math.isnan(v)) else scoring.clean(v)
-        item["tech_points"] = row.get("tech_points") if isinstance(row.get("tech_points"), dict) else None
-        item["signal"] = item["signal"] or "데이터 부족"
-        item["rank"] = rank
-        item["prev_rank"] = prev.get(code)
+        for f in ("score", "s_value", "s_momentum", "s_low_vol", "mom_12_1", "vol_60", "ret_1m", "ret_3m",
+                  "high_52w", "dist_ma200"):
+            item[f] = scoring.clean(row.get(f))
+        item.update(rank=int(row["rank"]), prev_rank=prev_ranks.get(code), signal=sig[code],
+                    foreign_20d=scoring.clean(flow.get("foreign")), institution_20d=scoring.clean(flow.get("institution")))
         stocks.append(item)
 
-    buys = [s for s in stocks if s["signal"] == ta.SIGNAL_BUY and s["stop_pct"]]
-    portfolio = [
-        {"code": p["code"], "name": p["name"], "price": p["price"], "stop": p["stop"],
-         "stop_pct": p["stop_pct"], "weight": p["weight"]}
-        for p in ta.position_sizes(buys, regime["exposure"])
-    ]
+    price = ranked["price"]
+    portfolio = []
+    for h in holdings:
+        p = float(price.get(h["code"], h["entry_price"]))
+        portfolio.append({**h, "price": p, "return": p / h["entry_price"] - 1, "rank": int(ranked.loc[h["code"], "rank"]),
+                          "stop": h["entry_price"] * (1 - model.STOP), "weight": round(1 / model.HOLD, 4)})
 
     return {
         "generated_at": now.isoformat(timespec="minutes"),
         "session": "am" if now.hour < 12 else "pm",
         "price_source": source,
         "fiscal_year": year,
+        "model": {"weights": model.WEIGHTS, "hold": model.HOLD, "keep_rank": model.KEEP_RANK, "stop": model.STOP},
         "counts": {"market": len(market), "universe": len(universe), "matched": len(df),
-                   "passed": len(passed), "candidates": len(fund), "technical": len(tech)},
-        "weights": {**scoring.WEIGHTS, "fcf": scoring.FCF_WEIGHT},
-        "tech_points": ta.TECH_POINTS,
-        "blend": {"fund": FUND_WEIGHT, "tech": TECH_WEIGHT},
-        "risk": {"risk_per_trade": ta.RISK_PER_TRADE, "max_weight": ta.MAX_WEIGHT,
-                 "max_holdings": ta.MAX_HOLDINGS, "stop_range": [ta.STOP_MIN, ta.STOP_MAX]},
+                   "passed": len(passed), "priced": len(factors)},
         "filters": {"min_market_cap": args.min_market_cap, "min_trading_value": args.min_trading_value},
         "regime": regime,
+        "holdings": holdings,
+        "events": events,
         "portfolio": portfolio,
         "stocks": stocks,
     }
@@ -334,13 +311,14 @@ def main(argv=None) -> int:
         return 0
 
     dart = DartClient(os.environ.get("DART_API_KEY", ""))
-    report = build_report(args, now, market, source, dart, previous_ranks(out), NaverFeeds(now), out / "cache")
+    prev_ranks, prev_holdings = previous_state(out)
+    report = build_report(args, now, market, source, dart, prev_ranks, NaverFeeds(now), out / "cache", prev_holdings)
     write_site(out, report, now)
     if os.environ.get("GITHUB_OUTPUT"):  # 휴장일에는 게시 단계를 건너뛰도록 알린다
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write("updated=true\n")
-    log.info("완료: 상위 %d종목, 국면 %s, 매수 관심 %d종목", len(report["stocks"]),
-             report["regime"]["regime"], len(report["portfolio"]))
+    log.info("완료: 상위 %d종목, 보유 %d종목, 변경 %d건", len(report["stocks"]),
+             len(report["portfolio"]), len(report["events"]))
     return 0
 
 
