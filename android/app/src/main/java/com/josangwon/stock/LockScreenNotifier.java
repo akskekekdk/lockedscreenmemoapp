@@ -6,6 +6,14 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.view.View;
+import android.widget.RemoteViews;
+
+import java.util.Locale;
 
 /** 알림창(내려서 보는 패널)에 조용히 떠 있는 상위 3종목. 소리·진동·팝업 없이 갱신된다. */
 final class LockScreenNotifier {
@@ -42,24 +50,31 @@ final class LockScreenNotifier {
         ensureChannel(c);
         if (!nm.areNotificationsEnabled()) return false;
 
-        Notification.InboxStyle style = new Notification.InboxStyle();
-        for (int i = 0; i < t.items.size(); i++) {
-            style.addLine(TopStocks.line(i + 1, t.items.get(i)));
+        // 제목·요약 줄 없이 종목 3줄만 보여준다(맨 위 앱 이름·아이콘은 시스템이 붙인다).
+        int[] lines = {R.id.line1, R.id.line2, R.id.line3};
+        RemoteViews big = new RemoteViews(c.getPackageName(), R.layout.notif_top3);
+        SpannableStringBuilder summary = new SpannableStringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            if (i < t.items.size()) {
+                TopStocks.Item it = t.items.get(i);
+                big.setTextViewText(lines[i], line(i + 1, it));
+                if (i > 0) summary.append("   ");
+                summary.append(String.valueOf(i + 1)).append(". ").append(it.name).append(' ').append(change(it));
+            } else {
+                big.setViewVisibility(lines[i], View.GONE);
+            }
         }
-        style.setSummaryText(t.subtitle());
+        RemoteViews small = new RemoteViews(c.getPackageName(), R.layout.notif_top3_small);
+        small.setTextViewText(R.id.summary, summary);
 
-        TopStocks.Item first = t.items.get(0);
         PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Notification n = new Notification.Builder(c, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_chart)
-                .setContentTitle("조상원 주식 TOP3")
-                .setContentText(String.format(java.util.Locale.KOREA, "1. %s %+.2f%% · 2. %s · 3. %s",
-                        first.name, first.changePct,
-                        t.items.size() > 1 ? t.items.get(1).name : "-",
-                        t.items.size() > 2 ? t.items.get(2).name : "-"))
-                .setStyle(style)
+                .setStyle(new Notification.DecoratedCustomViewStyle())
+                .setCustomContentView(small)
+                .setCustomBigContentView(big)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
@@ -69,5 +84,21 @@ final class LockScreenNotifier {
                 .build();
         nm.notify(ID, n);
         return true;
+    }
+
+    /** "1. 슈프리마  55,400원 +6.95%  [매수 관심]" — 등락률만 빨강/파랑 */
+    private static CharSequence line(int rank, TopStocks.Item it) {
+        SpannableStringBuilder b = new SpannableStringBuilder();
+        b.append(String.format(Locale.KOREA, "%d. %s  %,.0f원 ", rank, it.name, it.price));
+        b.append(change(it));
+        if (!it.signal.isEmpty()) b.append("  [").append(it.signal).append(']');
+        return b;
+    }
+
+    private static CharSequence change(TopStocks.Item it) {
+        SpannableString s = new SpannableString(String.format(Locale.KOREA, "%+.2f%%", it.changePct));
+        int color = it.changePct > 0 ? 0xFFE5484D : it.changePct < 0 ? 0xFF3E7BFA : 0xFF888888;
+        s.setSpan(new ForegroundColorSpan(color), 0, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return s;
     }
 }

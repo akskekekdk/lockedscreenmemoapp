@@ -32,14 +32,41 @@ final class TopStocks {
     String pricedAt = "";     // 시세 시각 (예: 10:30)
     String regime = "";
 
+    static final String SORT_SCORE = "score";
+    static final String SORT_BUY = "buy";
+    private static final String KEY_SORT = "sort";
+    // 매수 관심 우선 정렬 순서 (웹앱 app.js의 SIGNAL_ORDER와 같게 유지)
+    private static final String[] SIGNAL_ORDER = {"매수 관심", "관망", "과열 주의", "추세 이탈"};
+
+    static String sort(Context c) {
+        return prefs(c).getString(KEY_SORT, SORT_SCORE);
+    }
+
+    static void setSort(Context c, String sort) {
+        prefs(c).edit().putString(KEY_SORT, SORT_BUY.equals(sort) ? SORT_BUY : SORT_SCORE).apply();
+    }
+
+    private static int signalRank(String signal) {
+        for (int i = 0; i < SIGNAL_ORDER.length; i++) {
+            if (SIGNAL_ORDER[i].equals(signal)) return i;
+        }
+        return SIGNAL_ORDER.length;
+    }
+
     /** 네트워크에서 새로 받는다. 메인 스레드에서 부르면 안 된다. */
-    static TopStocks fetch() throws Exception {
+    static TopStocks fetch(Context c) throws Exception {
         JSONObject report = new JSONObject(get(LATEST_URL));
         TopStocks t = new TopStocks();
-        JSONArray stocks = report.getJSONArray("stocks");
+        JSONArray arr = report.getJSONArray("stocks");
+        List<JSONObject> stocks = new ArrayList<>();
+        for (int i = 0; i < arr.length(); i++) stocks.add(arr.getJSONObject(i));  // 이미 종합 점수순
+        if (SORT_BUY.equals(sort(c))) {
+            // 안정 정렬: 같은 신호 안에서는 종합 점수순 유지
+            stocks.sort((a, b) -> Integer.compare(signalRank(a.optString("signal")), signalRank(b.optString("signal"))));
+        }
         StringBuilder codes = new StringBuilder();
-        for (int i = 0; i < Math.min(COUNT, stocks.length()); i++) {
-            JSONObject s = stocks.getJSONObject(i);
+        for (int i = 0; i < Math.min(COUNT, stocks.size()); i++) {
+            JSONObject s = stocks.get(i);
             Item it = new Item();
             it.code = s.getString("code");
             it.name = s.getString("name");

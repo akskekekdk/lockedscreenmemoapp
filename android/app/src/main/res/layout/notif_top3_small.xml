@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 알림창 접힌 모양: 한 줄 요약 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/summary"
+    style="@style/NotifLine"
+    android:layout_gravity="center_vertical" />

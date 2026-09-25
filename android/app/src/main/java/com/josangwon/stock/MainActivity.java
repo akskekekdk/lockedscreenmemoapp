@@ -43,6 +43,16 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
 
+        // 웹앱에서 정렬을 바꾸면 알림창 TOP3도 같은 순서로 보여준다.
+        webView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void setSort(String sort) {
+                if (sort == null || sort.equals(TopStocks.sort(MainActivity.this))) return;
+                TopStocks.setSort(MainActivity.this, sort);
+                UpdateJobService.updateNow(MainActivity.this, null);
+            }
+        }, "JosangwonApp");
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {

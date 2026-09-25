@@ -19,6 +19,20 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 const dash = "–";
 let current = null;
 let view = "summary";
+let sort = "score";
+// 매수 관심 우선 정렬 순서 (안드로이드 TopStocks.SIGNAL_ORDER와 같게 유지)
+const SIGNAL_ORDER = ["매수 관심", "관망", "과열 주의", "추세 이탈"];
+const signalRank = (s) => { const i = SIGNAL_ORDER.indexOf(s); return i < 0 ? SIGNAL_ORDER.length : i; };
+
+function sortedStocks(stocks) {
+  if (sort !== "buy") return stocks;  // 기본은 종합 점수순(원래 순서)
+  return stocks.slice().sort((a, b) => signalRank(a.signal) - signalRank(b.signal) || a.rank - b.rank);
+}
+
+function tellApp() {
+  // 안드로이드 앱 안이면 알림창 TOP3도 같은 정렬로 보여주게 알린다.
+  try { if (window.JosangwonApp) window.JosangwonApp.setSort(sort); } catch (_) { /* 앱 밖이면 무시 */ }
+}
 
 function num(v, digits = 1) {
   return v == null ? dash : v.toLocaleString("ko-KR", { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -119,7 +133,7 @@ function renderTable(report) {
   const v = VIEWS[view];
   $("#table thead").innerHTML = `<tr>${v.head.map((h, i) => `<th class="${v.left.has(i) ? "left" : ""}">${h}</th>`).join("")}</tr>`;
   $("#table tbody").innerHTML = report.stocks.length
-    ? report.stocks.map((s) => `<tr>${v.row(s)}</tr>`).join("")
+    ? sortedStocks(report.stocks).map((s) => `<tr>${v.row(s)}</tr>`).join("")
     : `<tr><td colspan="${v.head.length}" class="empty">조건을 통과한 종목이 없습니다.</td></tr>`;
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
 }
@@ -231,6 +245,16 @@ async function init() {
     if (current) renderTable(current);
   }));
   try { view = localStorage.getItem("view") || view; } catch (_) { /* 무시 */ }
+  try { sort = localStorage.getItem("sort") || sort; } catch (_) { /* 무시 */ }
+  if (sort !== "buy") sort = "score";
+  $("#sort").value = sort;
+  tellApp();
+  $("#sort").addEventListener("change", () => {
+    sort = $("#sort").value;
+    try { localStorage.setItem("sort", sort); } catch (_) { /* 저장 안 돼도 무방 */ }
+    tellApp();
+    if (current) renderTable(current);
+  });
   if (!VIEWS[view]) view = "summary";
   try {
     const runs = await fetch("data/index.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : []));

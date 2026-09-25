@@ -38,7 +38,7 @@ public class UpdateJobService extends JobService {
         new Thread(() -> {
             boolean retry = false;
             try {
-                TopStocks t = TopStocks.fetch();
+                TopStocks t = TopStocks.fetch(this);
                 t.save(this);
                 refreshViews(this, t);
             } catch (Throwable e) {
@@ -74,7 +74,7 @@ public class UpdateJobService extends JobService {
         new Thread(() -> {
             String result;
             try {
-                TopStocks t = TopStocks.fetch();
+                TopStocks t = TopStocks.fetch(app);
                 t.save(app);
                 result = refreshViews(app, t) ? null : "알림 권한이 꺼져 있습니다";
             } catch (Throwable e) {
