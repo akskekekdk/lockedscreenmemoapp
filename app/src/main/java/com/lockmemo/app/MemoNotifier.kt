@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
+import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -107,14 +109,18 @@ object MemoNotifier {
         } else if (canNotify(context)) {
             ensureChannel(context)
             // 알림은 하나만. 배경화면 모드에서는 메모를 배경에 그리므로 입력 안내만 띄운다
-            val lines = if (wallpaperMode) emptyList() else memos.map { DueFormat.line(context, it, now) }
+            val rows = if (wallpaperMode) emptyList() else memos.map { Row(DueFormat.line(context, it, now), it.due) }
             @Suppress("MissingPermission")
-            manager.notify(NOTIFICATION_ID, build(context, lines))
+            manager.notify(NOTIFICATION_ID, build(context, rows, now))
         }
 
         // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.
         // 정확할 필요는 없어서 정확한 알람 권한 없이 쓸 수 있는 방식을 쓴다.
-        val nextDue = memos.mapNotNull { it.due }.filter { it > now }.minOrNull()
+        // 하루 전 시점에는 "D-1" → 실시간 카운트다운으로 바뀌어야 하므로 그 시각도 후보에 넣는다
+        val nextDue = memos.mapNotNull { it.due }
+            .flatMap { listOf(it, it - DueFormat.DAY_MS) }
+            .filter { it > now }
+            .minOrNull()
         val next = minOf(nextDue ?: Long.MAX_VALUE, DueFormat.nextMidnight(now))
         alarms.setAndAllowWhileIdle(AlarmManager.RTC, next, refreshIntent)
     }
@@ -124,8 +130,15 @@ object MemoNotifier {
      * 기본 알림 모양은 접힌 상태에서 한 줄만 보여서, 직접 만든 레이아웃에 줄을 채워 넣는다.
      * [lines]가 비면 입력 안내.
      */
-    private fun build(context: Context, memoLines: List<String>): android.app.Notification {
-        val lines = memoLines.ifEmpty { listOf(context.getString(R.string.empty_hint)) }
+    /** 알림의 한 줄: 보여줄 글(“오늘 14:00 · 내용”)과 남은 시간 계산용 시각. */
+    private class Row(val text: String, val due: Long?)
+
+    private fun build(context: Context, memoRows: List<Row>, now: Long): android.app.Notification {
+        val rows = memoRows.ifEmpty { listOf(Row(context.getString(R.string.empty_hint), null)) }
+        // 직접 만든 화면을 못 쓰는 곳(워치 등)에서는 남은 시간까지 글로 붙여 보여준다
+        val lines = rows.map { row ->
+            row.due?.let { DueFormat.remaining(context, it, now) }?.let { "${row.text} ($it)" } ?: row.text
+        }
         val openQuickMemo = PendingIntent.getActivity(
             context, 2,
             Intent(context, QuickMemoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -138,8 +151,8 @@ object MemoNotifier {
             .setContentTitle(lines.first())
             .setContentText(lines.drop(1).joinToString(" / ").ifEmpty { null })
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(linesView(context, lines.take(COLLAPSED_LINES)))
-            .setCustomBigContentView(linesView(context, lines.take(EXPANDED_LINES)))
+            .setCustomContentView(linesView(context, rows.take(COLLAPSED_LINES), now))
+            .setCustomBigContentView(linesView(context, rows.take(EXPANDED_LINES), now))
             .setContentIntent(openQuickMemo)
             .setOngoing(true)
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
@@ -168,15 +181,31 @@ object MemoNotifier {
             .build()
     }
 
-    private fun linesView(context: Context, lines: List<String>): RemoteViews {
+    private fun linesView(context: Context, rows: List<Row>, now: Long): RemoteViews {
         val view = RemoteViews(context.packageName, R.layout.notification_memos)
-        lines.forEach { text ->
-            view.addView(
-                R.id.lines,
-                RemoteViews(context.packageName, R.layout.notification_line).apply {
-                    setTextViewText(R.id.line, text)
-                },
-            )
+        rows.forEach { row ->
+            val line = RemoteViews(context.packageName, R.layout.notification_line)
+            line.setTextViewText(R.id.line, row.text)
+            val left = row.due?.let { it - now } ?: 0
+            when {
+                left <= 0 -> Unit // 날짜 없음 또는 지남: 남은 시간 표시 없음
+                left <= DueFormat.DAY_MS -> {
+                    // 하루 이내: 잠금화면에서 초 단위로 줄어드는 카운트다운
+                    line.setViewVisibility(R.id.countdown, View.VISIBLE)
+                    line.setChronometer(
+                        R.id.countdown,
+                        SystemClock.elapsedRealtime() + left,
+                        context.getString(R.string.countdown_format),
+                        true,
+                    )
+                    line.setChronometerCountDown(R.id.countdown, true)
+                }
+                else -> {
+                    line.setViewVisibility(R.id.remain_static, View.VISIBLE)
+                    line.setTextViewText(R.id.remain_static, DueFormat.remaining(context, row.due!!, now))
+                }
+            }
+            view.addView(R.id.lines, line)
         }
         return view
     }

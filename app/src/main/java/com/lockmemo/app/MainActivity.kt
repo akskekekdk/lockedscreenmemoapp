@@ -9,6 +9,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
 import android.view.KeyEvent
@@ -99,8 +101,24 @@ class MainActivity : Activity() {
         if (MemoStore.isLockScreenEnabled(this)) requestNotificationPermissionIfNeeded()
     }
 
+    /** 남은 시간이 줄어드는 걸 보여주려고 화면에 있는 동안 30초마다 다시 그린다. */
+    private val ticker = Handler(Looper.getMainLooper())
+    private val tick = object : Runnable {
+        override fun run() {
+            adapter.notifyItemRangeChanged(0, adapter.itemCount)
+            dueChooser.refreshLabel()
+            ticker.postDelayed(this, 30_000)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        ticker.removeCallbacks(tick)
+    }
+
     override fun onResume() {
         super.onResume()
+        ticker.postDelayed(tick, 30_000)
         reload()
         MemoNotifier.refresh(this)
         updateProblem()
@@ -196,20 +214,23 @@ class MainActivity : Activity() {
         }
     }
 
+    /** 메모를 누르면: 날짜·시간으로 정하기 / 남은 시간으로 정하기 / (있으면) 없애기 */
     private fun editDue(memo: Memo) {
         val apply = { due: Long? ->
             MemoStore.setDue(this, memo, due)
             reload()
             MemoNotifier.refresh(this)
         }
-        if (memo.due == null) {
-            DueFormat.pick(this, null) { apply(it) }
-            return
-        }
+        val options = mutableListOf(getString(R.string.change_due), getString(R.string.set_remaining))
+        if (memo.due != null) options += getString(R.string.remove_due)
         AlertDialog.Builder(this)
             .setTitle(memo.text)
-            .setItems(arrayOf(getString(R.string.change_due), getString(R.string.remove_due))) { _, which ->
-                if (which == 0) DueFormat.pick(this, memo.due) { apply(it) } else apply(null)
+            .setItems(options.toTypedArray()) { _, which ->
+                when (which) {
+                    0 -> DueFormat.pick(this, memo.due) { apply(it) }
+                    1 -> DueFormat.pickDuration(this) { apply(it) }
+                    else -> apply(null)
+                }
             }
             .show()
     }
@@ -294,7 +315,7 @@ class MainActivity : Activity() {
 
     private inner class MemoAdapter : RecyclerView.Adapter<MemoHolder>() {
         var memos: MutableList<Memo> = mutableListOf()
-        private val timeFormat = SimpleDateFormat("yyyy.M.d HH:mm", Locale.getDefault())
+        private val timeFormat = SimpleDateFormat("M/d HH:mm", Locale.getDefault())
 
         override fun getItemCount() = memos.size
 
@@ -306,7 +327,7 @@ class MainActivity : Activity() {
             holder.text.text = memo.text
             holder.due.visibility = if (memo.due == null) View.GONE else View.VISIBLE
             if (memo.due != null) {
-                holder.due.text = getString(R.string.due_chip, DueFormat.format(this@MainActivity, memo.due))
+                holder.due.text = getString(R.string.due_chip, DueFormat.withRemaining(this@MainActivity, memo.due))
                 holder.due.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
             }
             holder.time.text = getString(R.string.created_at, timeFormat.format(Date(memo.time)))

@@ -45,7 +45,7 @@ class LockScreenTest {
         @Suppress("DEPRECATION")
         val collapsed = notification.contentView.apply(context, FrameLayout(context))
         val lines = (collapsed.findViewById<LinearLayout>(R.id.lines)).let { box ->
-            (0 until box.childCount).map { (box.getChildAt(it) as TextView).text.toString() }
+            (0 until box.childCount).map { box.getChildAt(it).findViewById<TextView>(R.id.line).text.toString() }
         }
         lines.forEach { println("알림 줄: $it") }
         assertEquals(3, lines.size)
@@ -67,6 +67,36 @@ class LockScreenTest {
         MemoStore.all(context).forEach { MemoStore.remove(context, it) }
         MemoNotifier.refresh(context)
         assertEquals(0, shadowOf(manager).allNotifications.size)
+    }
+
+    @Test
+    fun remainingTimeText() {
+        val now = System.currentTimeMillis()
+        assertEquals("2시간 30분 남음", DueFormat.remaining(context, now + 150 * 60_000L, now))
+        assertEquals("1시간 남음", DueFormat.remaining(context, now + 60 * 60_000L, now))
+        assertEquals("30분 남음", DueFormat.remaining(context, now + 29 * 60_000L + 40_000L, now))
+        assertEquals(null, DueFormat.remaining(context, now - 1, now))
+        val threeDays = DueFormat.remaining(context, now + 3 * DueFormat.DAY_MS, now)
+        assertEquals("D-3", threeDays)
+        println("표시 예: " + DueFormat.withRemaining(context, now + 150 * 60_000L, now))
+    }
+
+    @Test
+    fun notificationShowsLiveCountdownWithinADayAndDDayBeyond() {
+        MemoStore.all(context).forEach { MemoStore.remove(context, it) }
+        MemoStore.add(context, "먼 일정", System.currentTimeMillis() + 3 * DueFormat.DAY_MS)
+        MemoStore.add(context, "곧 할 일", System.currentTimeMillis() + 90 * 60_000L)
+        MemoNotifier.refresh(context)
+        @Suppress("DEPRECATION")
+        val view = shadowOf(manager).allNotifications.single().bigContentView.apply(context, FrameLayout(context))
+        val box = view.findViewById<LinearLayout>(R.id.lines)
+        val soon = box.getChildAt(0)
+        val far = box.getChildAt(1)
+        assertEquals(android.view.View.VISIBLE, soon.findViewById<android.widget.Chronometer>(R.id.countdown).visibility)
+        assertEquals(true, soon.findViewById<android.widget.Chronometer>(R.id.countdown).isCountDown)
+        assertEquals("D-3", far.findViewById<TextView>(R.id.remain_static).text.toString())
+        println("알림 줄: " + soon.findViewById<TextView>(R.id.line).text + " | " +
+            soon.findViewById<android.widget.Chronometer>(R.id.countdown).text)
     }
 
     @Test

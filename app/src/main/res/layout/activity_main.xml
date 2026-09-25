@@ -229,6 +229,19 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/remain_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_chip"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="7dp"
+                android:text="@string/add_remaining"
+                android:textColor="@color/accent"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
                 android:id="@+id/due_clear"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

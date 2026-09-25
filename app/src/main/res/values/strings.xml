@@ -25,13 +25,13 @@
     <string name="problem_channel_secret">\'잠금화면 메모\' 알림이 잠금화면에서 숨김으로 설정되어 있어요.</string>
     <string name="open_settings">알림 설정 열기</string>
     <string name="lockscreen_tip">여전히 잠금화면에 안 보이면 휴대폰 설정 → 알림 → 잠금화면 알림에서\n• \'모든 내용 표시\'(또는 \'민감한 내용 표시\')를 켜고\n• 삼성: 알림 스타일을 \'아이콘만\' 대신 \'상세 정보\'로\n• 픽셀: \'무음 알림 숨기기\'를 끄세요.</string>
-    <string name="add_due">📅 날짜·시간 설정</string>
+    <string name="add_due">📅 날짜·시간</string>
     <string name="clear_due">날짜·시간 지우기</string>
     <string name="today">오늘</string>
     <string name="tomorrow">내일</string>
     <string name="yesterday">어제</string>
     <string name="past_label">%1$s (지남)</string>
-    <string name="change_due">날짜·시간 변경</string>
+    <string name="change_due">날짜·시간으로 정하기</string>
     <string name="remove_due">날짜·시간 없애기</string>
     <string name="created_at">작성 %1$s</string>
     <string name="due_chip">📅 %1$s</string>
@@ -50,4 +50,20 @@
     <string name="memo_title">메모</string>
     <string name="settings">설정</string>
     <string name="header_summary">%1$s · 메모 %2$d개</string>
+    <string name="add_remaining">⏱ 남은 시간</string>
+    <string name="pick_remaining_title">얼마 뒤로 할까요?</string>
+    <string name="custom_duration">직접 입력…</string>
+    <string name="after">%1$s 후</string>
+    <string name="unit_days">%1$d일</string>
+    <string name="unit_hours">%1$d시간</string>
+    <string name="unit_minutes">%1$d분</string>
+    <string name="unit_days_label">일</string>
+    <string name="unit_hours_label">시간</string>
+    <string name="unit_minutes_label">분</string>
+    <string name="left_hours_minutes">%1$d시간 %2$d분 남음</string>
+    <string name="left_hours">%1$d시간 남음</string>
+    <string name="left_minutes">%1$d분 남음</string>
+    <string name="d_day">D-%1$d</string>
+    <string name="countdown_format">%s 남음</string>
+    <string name="set_remaining">남은 시간으로 정하기</string>
 </resources>
