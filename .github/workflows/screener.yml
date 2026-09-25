@@ -36,11 +36,10 @@ jobs:
       # 이전 결과(순위 변동 비교·히스토리)를 이어가기 위해 gh-pages를 public/에 받는다.
       - name: 이전 결과 가져오기
         run: |
+          mkdir -p public
           if git ls-remote --exit-code --heads origin gh-pages >/dev/null; then
             git fetch --depth=1 origin gh-pages
-            git worktree add public origin/gh-pages
-          else
-            mkdir -p public
+            git archive origin/gh-pages | tar -x -C public
           fi
 
       - uses: actions/setup-python@v5
@@ -67,5 +66,4 @@ jobs:
           publish_branch: gh-pages
           publish_dir: public
           keep_files: true
-          exclude_assets: ".git,.github"
           commit_message: "스크리너 결과 업데이트"
