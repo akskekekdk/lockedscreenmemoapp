@@ -3,6 +3,9 @@ package com.lockmemo.app
 import android.app.Application
 import android.app.NotificationManager
 import android.graphics.Bitmap
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import org.robolectric.RuntimeEnvironment
 import org.junit.Assert.assertEquals
@@ -32,14 +35,21 @@ class LockScreenTest {
     }
 
     @Test
-    fun allMemosShareOneNotificationLine() {
+    fun oneNotificationWithOneLinePerMemoInCustomOrder() {
+        // 저장 순서(새 메모가 맨 앞): 팀 회의, 치과, 우유 → 맨 아래 우유를 맨 위로
+        MemoStore.move(context, 2, 0)
         MemoNotifier.refresh(context)
         val posted = shadowOf(manager).allNotifications
         assertEquals(1, posted.size)
-        val title = posted.single().extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString()
-        println("알림: $title")
-        assertEquals(3, title.split("  |  ").size)
-        assertEquals(null, posted.single().extras.getCharSequence(NotificationCompat.EXTRA_TEXT))
+        val notification = posted.single()
+        @Suppress("DEPRECATION")
+        val collapsed = notification.contentView.apply(context, FrameLayout(context))
+        val lines = (collapsed.findViewById<LinearLayout>(R.id.lines)).let { box ->
+            (0 until box.childCount).map { (box.getChildAt(it) as TextView).text.toString() }
+        }
+        lines.forEach { println("알림 줄: $it") }
+        assertEquals(3, lines.size)
+        assertEquals("우유 사기", lines[0])
     }
 
     @Test
@@ -54,7 +64,7 @@ class LockScreenTest {
     @Test
     fun renderWallpaperPreview() {
         val now = System.currentTimeMillis()
-        val lines = MemoStore.sorted(context, now).map { DueFormat.line(context, it, now) } +
+        val lines = MemoStore.all(context).map { DueFormat.line(context, it, now) } +
             "아주 긴 메모는 화면 끝에서 말줄임표로 잘려서 항상 한 줄로만 보여야 합니다 정말 길게 길게"
         val bitmap = LockWallpaper.render(context, lines, 1080, 2340)
         val out = File("build/wallpaper-preview.png")

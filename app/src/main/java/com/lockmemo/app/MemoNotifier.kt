@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
@@ -16,7 +17,7 @@ import androidx.core.content.ContextCompat
 
 /**
  * 잠금화면에 항상 떠 있는 메모 알림.
- * - 알림 하나에 메모를 모두 이어 한 줄로 보여주고
+ * - 알림 하나에 메모를 한 줄에 하나씩 보여주고
  * - "한 줄 메모" 버튼으로 잠금을 풀지 않고 바로 입력(인라인 답장)할 수 있다.
  */
 object MemoNotifier {
@@ -27,7 +28,10 @@ object MemoNotifier {
 
 
     const val NOTIFICATION_ID = 1
-    private const val SEPARATOR = "  |  "
+
+    // 접힌 알림(잠금화면)은 높이가 정해져 있어 3줄까지, 펼치면 10줄까지
+    private const val COLLAPSED_LINES = 3
+    private const val EXPANDED_LINES = 10
 
     // 예전 버전이 메모마다 따로 쓰던 알림 ID(1~10). 1번은 지금도 쓴다.
     private val ROW_IDS = (1..10).toList()
@@ -87,7 +91,7 @@ object MemoNotifier {
         }
 
         val now = System.currentTimeMillis()
-        val memos = MemoStore.sorted(context, now)
+        val memos = MemoStore.all(context)
         val wallpaperMode = MemoStore.isWallpaperMode(context)
         if (wallpaperMode) {
             LockWallpaper.update(context, memos.map { DueFormat.line(context, it, now) })
@@ -113,10 +117,12 @@ object MemoNotifier {
     }
 
     /**
-     * 알림 하나에 모든 메모를 " | " 로 이어 한 줄로 보여준다. 제목 없이 내용만.
+     * 알림 하나에 메모를 하나씩 줄바꿈해서 보여준다. 제목 없이 내용만.
+     * 기본 알림 모양은 접힌 상태에서 한 줄만 보여서, 직접 만든 레이아웃에 줄을 채워 넣는다.
      * [lines]가 비면 입력 안내.
      */
-    private fun build(context: Context, lines: List<String>): android.app.Notification {
+    private fun build(context: Context, memoLines: List<String>): android.app.Notification {
+        val lines = memoLines.ifEmpty { listOf(context.getString(R.string.empty_hint)) }
         val openQuickMemo = PendingIntent.getActivity(
             context, 2,
             Intent(context, QuickMemoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -125,7 +131,12 @@ object MemoNotifier {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_memo)
-            .setContentTitle(lines.joinToString(SEPARATOR).ifEmpty { context.getString(R.string.empty_hint) })
+            // 직접 만든 화면을 못 쓰는 곳(워치 등)에서 보일 내용
+            .setContentTitle(lines.first())
+            .setContentText(lines.drop(1).joinToString(" / ").ifEmpty { null })
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(linesView(context, lines.take(COLLAPSED_LINES)))
+            .setCustomBigContentView(linesView(context, lines.take(EXPANDED_LINES)))
             .setContentIntent(openQuickMemo)
             .setOngoing(true)
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
@@ -152,6 +163,19 @@ object MemoNotifier {
             .addAction(replyAction)
             .addAction(R.drawable.ic_memo, context.getString(R.string.action_quick), openQuickMemo)
             .build()
+    }
+
+    private fun linesView(context: Context, lines: List<String>): RemoteViews {
+        val view = RemoteViews(context.packageName, R.layout.notification_memos)
+        lines.forEach { text ->
+            view.addView(
+                R.id.lines,
+                RemoteViews(context.packageName, R.layout.notification_line).apply {
+                    setTextViewText(R.id.line, text)
+                },
+            )
+        }
+        return view
     }
 
     private fun actionIntent(context: Context, action: String, requestCode: Int): PendingIntent {

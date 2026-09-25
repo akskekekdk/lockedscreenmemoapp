@@ -1,6 +1,7 @@
 package com.lockmemo.app
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -14,13 +15,15 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.widget.BaseAdapter
 import android.widget.EditText
-import android.widget.ListView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,10 +46,13 @@ class MainActivity : Activity() {
         input = findViewById(R.id.memo_input)
         emptyView = findViewById(R.id.empty_view)
         dueChooser = DueChooser(this)
-        val list = findViewById<ListView>(R.id.memo_list)
+        val list = findViewById<RecyclerView>(R.id.memo_list)
+        list.layoutManager = LinearLayoutManager(this)
         list.adapter = adapter
-        list.emptyView = emptyView
-        list.setOnItemClickListener { _, _, position, _ -> editDue(adapter.getItem(position)) }
+        list.addItemDecoration(DividerItemDecoration(this, DividerItemDecoration.VERTICAL).apply {
+            setDrawable(getDrawable(R.drawable.divider)!!)
+        })
+        reorder.attachToRecyclerView(list)
 
         input.setOnEditorActionListener { _, actionId, event ->
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
@@ -219,33 +225,82 @@ class MainActivity : Activity() {
             .show()
     }
 
+    @SuppressLint("NotifyDataSetChanged") // 저장소에서 목록 전체를 다시 읽어 온다
     private fun reload() {
-        adapter.memos = MemoStore.sorted(this)
+        adapter.memos = MemoStore.all(this).toMutableList()
         adapter.notifyDataSetChanged()
+        emptyView.visibility = if (adapter.memos.isEmpty()) View.VISIBLE else View.GONE
     }
 
-    private inner class MemoAdapter : BaseAdapter() {
-        var memos: List<Memo> = emptyList()
+    /** 꾹 눌러서 위아래로 끌면 순서가 바뀐다. 손을 떼면 저장하고 잠금화면도 갱신. */
+    private val reorder = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+        ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0,
+    ) {
+        private var dragFrom = RecyclerView.NO_POSITION
+
+        override fun onMove(rv: RecyclerView, from: RecyclerView.ViewHolder, to: RecyclerView.ViewHolder): Boolean {
+            val a = from.bindingAdapterPosition
+            val b = to.bindingAdapterPosition
+            if (dragFrom == RecyclerView.NO_POSITION) dragFrom = a
+            adapter.memos.add(b, adapter.memos.removeAt(a))
+            adapter.notifyItemMoved(a, b)
+            return true
+        }
+
+        override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+            super.onSelectedChanged(viewHolder, actionState)
+            if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                viewHolder?.itemView?.alpha = 0.85f
+                viewHolder?.itemView?.elevation = 12f
+            }
+        }
+
+        override fun clearView(rv: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+            super.clearView(rv, viewHolder)
+            viewHolder.itemView.alpha = 1f
+            viewHolder.itemView.elevation = 0f
+            val dragTo = viewHolder.bindingAdapterPosition
+            if (dragFrom != RecyclerView.NO_POSITION && dragTo != RecyclerView.NO_POSITION && dragFrom != dragTo) {
+                MemoStore.move(this@MainActivity, dragFrom, dragTo)
+                MemoNotifier.refresh(this@MainActivity)
+            }
+            dragFrom = RecyclerView.NO_POSITION
+        }
+
+        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+    })
+
+    private class MemoHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val text: TextView = view.findViewById(R.id.memo_text)
+        val due: TextView = view.findViewById(R.id.memo_due)
+        val time: TextView = view.findViewById(R.id.memo_time)
+        val delete: View = view.findViewById(R.id.delete_button)
+    }
+
+    private inner class MemoAdapter : RecyclerView.Adapter<MemoHolder>() {
+        var memos: MutableList<Memo> = mutableListOf()
         private val timeFormat = SimpleDateFormat("yyyy.M.d HH:mm", Locale.getDefault())
 
-        override fun getCount() = memos.size
-        override fun getItem(position: Int) = memos[position]
-        override fun getItemId(position: Int) = memos[position].time
+        override fun getItemCount() = memos.size
 
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = convertView ?: layoutInflater.inflate(R.layout.item_memo, parent, false)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+            MemoHolder(layoutInflater.inflate(R.layout.item_memo, parent, false))
+
+        override fun onBindViewHolder(holder: MemoHolder, position: Int) {
             val memo = memos[position]
-            view.findViewById<TextView>(R.id.memo_text).text = memo.text
-            val created = getString(R.string.created_at, timeFormat.format(Date(memo.time)))
-            val dueView = view.findViewById<TextView>(R.id.memo_due)
-            dueView.visibility = if (memo.due == null) View.GONE else View.VISIBLE
+            holder.text.text = memo.text
+            holder.due.visibility = if (memo.due == null) View.GONE else View.VISIBLE
             if (memo.due != null) {
-                dueView.text = getString(R.string.due_chip, DueFormat.format(this@MainActivity, memo.due))
-                dueView.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
+                holder.due.text = getString(R.string.due_chip, DueFormat.format(this@MainActivity, memo.due))
+                holder.due.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
             }
-            view.findViewById<TextView>(R.id.memo_time).text = created
-            view.findViewById<View>(R.id.delete_button).setOnClickListener { confirmDelete(memo) }
-            return view
+            holder.time.text = getString(R.string.created_at, timeFormat.format(Date(memo.time)))
+            holder.itemView.setOnClickListener {
+                memos.getOrNull(holder.bindingAdapterPosition)?.let { editDue(it) }
+            }
+            holder.delete.setOnClickListener {
+                memos.getOrNull(holder.bindingAdapterPosition)?.let { confirmDelete(it) }
+            }
         }
     }
 }

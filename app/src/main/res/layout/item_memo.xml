@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 끌어서 옮길 때 아래 줄이 비쳐 보이지 않도록 배경을 칠한다 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:descendantFocusability="blocksDescendants"
+    android:background="@color/background"
+    tools:ignore="Overdraw"
     android:gravity="center_vertical"
     android:orientation="horizontal">
+
+    <ImageView
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="10dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_drag" />
 
     <LinearLayout
         android:layout_width="0dp"
