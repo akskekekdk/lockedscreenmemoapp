@@ -99,14 +99,17 @@ object MemoNotifier {
             LockWallpaper.clear(context)
         }
 
-        if (canNotify(context)) {
+        // 예전 버전이 메모마다 따로 띄웠던 알림 정리
+        ROW_IDS.drop(1).forEach { manager.cancel(it) }
+        if (memos.isEmpty()) {
+            // 메모가 하나도 없으면 잠금화면에 아무것도 띄우지 않는다
+            manager.cancel(NOTIFICATION_ID)
+        } else if (canNotify(context)) {
             ensureChannel(context)
             // 알림은 하나만. 배경화면 모드에서는 메모를 배경에 그리므로 입력 안내만 띄운다
             val lines = if (wallpaperMode) emptyList() else memos.map { DueFormat.line(context, it, now) }
             @Suppress("MissingPermission")
             manager.notify(NOTIFICATION_ID, build(context, lines))
-            // 예전 버전이 메모마다 따로 띄웠던 알림 정리
-            ROW_IDS.drop(1).forEach { manager.cancel(it) }
         }
 
         // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.

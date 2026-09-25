@@ -61,6 +61,15 @@ class LockScreenTest {
     }
 
     @Test
+    fun noNotificationWhenThereAreNoMemos() {
+        MemoNotifier.refresh(context)
+        assertEquals(1, shadowOf(manager).allNotifications.size)
+        MemoStore.all(context).forEach { MemoStore.remove(context, it) }
+        MemoNotifier.refresh(context)
+        assertEquals(0, shadowOf(manager).allNotifications.size)
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)
