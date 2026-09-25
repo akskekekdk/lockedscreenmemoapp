@@ -12,6 +12,7 @@ object MemoStore {
     private const val PREFS = "memos"
     private const val KEY_MEMOS = "items"
     private const val KEY_LOCKSCREEN = "lockscreen_enabled"
+    private const val KEY_WALLPAPER_MODE = "wallpaper_mode"
     private const val MAX_MEMOS = 200
 
     private fun prefs(context: Context) =
@@ -65,6 +66,14 @@ object MemoStore {
             array.put(obj)
         }
         prefs(context).edit().putString(KEY_MEMOS, array.toString()).apply()
+    }
+
+    /** true 면 메모를 알림 대신 잠금화면 배경화면에 그린다(겹침 없음). */
+    fun isWallpaperMode(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_WALLPAPER_MODE, false)
+
+    fun setWallpaperMode(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_WALLPAPER_MODE, enabled).apply()
     }
 
     fun isLockScreenEnabled(context: Context): Boolean =

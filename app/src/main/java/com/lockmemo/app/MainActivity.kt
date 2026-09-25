@@ -6,7 +6,9 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
@@ -17,6 +19,7 @@ import android.widget.EditText
 import android.widget.ListView
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -24,6 +27,10 @@ import java.util.Locale
 
 /** 메모 목록 확인/추가/삭제와 잠금화면 표시 설정. */
 class MainActivity : Activity() {
+    companion object {
+        private const val REQUEST_BACKGROUND = 1
+    }
+
     private lateinit var input: EditText
     private lateinit var emptyView: TextView
     private lateinit var dueChooser: DueChooser
@@ -40,10 +47,6 @@ class MainActivity : Activity() {
         list.adapter = adapter
         list.emptyView = emptyView
         list.setOnItemClickListener { _, _, position, _ -> editDue(adapter.getItem(position)) }
-        list.setOnItemLongClickListener { _, _, position, _ ->
-            confirmDelete(adapter.getItem(position))
-            true
-        }
 
         input.setOnEditorActionListener { _, actionId, event ->
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
@@ -66,6 +69,25 @@ class MainActivity : Activity() {
         }
 
         findViewById<View>(R.id.open_settings).setOnClickListener { openNotificationSettings() }
+
+        val wallpaperToggle = findViewById<Switch>(R.id.wallpaper_switch)
+        wallpaperToggle.isChecked = MemoStore.isWallpaperMode(this)
+        updateWallpaperOptions()
+        wallpaperToggle.setOnCheckedChangeListener { button, checked ->
+            if (!checked) {
+                setWallpaperMode(false)
+                return@setOnCheckedChangeListener
+            }
+            // 사용자의 잠금화면 배경을 바꾸므로 먼저 확인받는다
+            AlertDialog.Builder(this)
+                .setTitle(R.string.wallpaper_confirm_title)
+                .setMessage(R.string.wallpaper_confirm)
+                .setPositiveButton(R.string.turn_on) { _, _ -> setWallpaperMode(true) }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> button.isChecked = false }
+                .setOnCancelListener { button.isChecked = false }
+                .show()
+        }
+        findViewById<View>(R.id.pick_background).setOnClickListener { chooseBackground() }
 
         if (MemoStore.isLockScreenEnabled(this)) requestNotificationPermissionIfNeeded()
     }
@@ -100,6 +122,54 @@ class MainActivity : Activity() {
             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
         }.putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
         startActivity(intent)
+    }
+
+    private fun setWallpaperMode(enabled: Boolean) {
+        MemoStore.setWallpaperMode(this, enabled)
+        updateWallpaperOptions()
+        MemoNotifier.refresh(this)
+    }
+
+    private fun updateWallpaperOptions() {
+        findViewById<View>(R.id.wallpaper_options).visibility =
+            if (MemoStore.isWallpaperMode(this)) View.VISIBLE else View.GONE
+    }
+
+    private fun chooseBackground() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.background_options)
+            .setItems(arrayOf(getString(R.string.background_pick), getString(R.string.background_default))) { _, which ->
+                if (which == 0) {
+                    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        Intent(MediaStore.ACTION_PICK_IMAGES)
+                    } else {
+                        Intent(Intent.ACTION_GET_CONTENT).setType("image/*")
+                    }
+                    startActivityForResult(intent, REQUEST_BACKGROUND)
+                } else {
+                    applyBackground(null)
+                }
+            }
+            .show()
+    }
+
+    @Deprecated("Activity 기본 API 사용")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_BACKGROUND && resultCode == RESULT_OK) data?.data?.let { applyBackground(it) }
+    }
+
+    private fun applyBackground(uri: Uri?) {
+        Thread {
+            try {
+                LockWallpaper.setBackground(this, uri)
+            } catch (e: Exception) {
+                runOnUiThread { Toast.makeText(this, R.string.background_failed, Toast.LENGTH_SHORT).show() }
+                return@Thread
+            }
+            runOnUiThread { MemoNotifier.refresh(this) }
+        }.start()
     }
 
     private fun requestNotificationPermissionIfNeeded() {
@@ -174,6 +244,7 @@ class MainActivity : Activity() {
                 dueView.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
             }
             view.findViewById<TextView>(R.id.memo_time).text = created
+            view.findViewById<View>(R.id.delete_button).setOnClickListener { confirmDelete(memo) }
             return view
         }
     }

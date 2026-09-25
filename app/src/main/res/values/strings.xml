@@ -16,7 +16,7 @@
     <string name="list_empty">아직 메모가 없어요.\n잠금화면 알림의 \'한 줄 메모\' 버튼으로 바로 적어보세요.</string>
     <string name="delete">삭제</string>
     <string name="delete_confirm">\"%1$s\" 메모를 삭제할까요?</string>
-    <string name="list_help">눌러서 날짜·시간 변경 · 길게 눌러 삭제</string>
+    <string name="list_help">눌러서 날짜·시간 변경</string>
     <string name="problem_notifications_off">알림이 꺼져 있어서 잠금화면에 메모가 표시되지 않아요.</string>
     <string name="problem_channel_off">\'잠금화면 메모\' 알림 종류가 꺼져 있어요.</string>
     <string name="problem_channel_silent">\'잠금화면 메모\' 알림이 무음으로 설정되어 있어요. 무음 알림은 잠금화면에서 숨겨져요. \'기본\'으로 바꿔주세요.</string>
@@ -34,4 +34,14 @@
     <string name="created_at">작성 %1$s</string>
     <string name="due_chip">📅 %1$s</string>
     <string name="clear_symbol">✕</string>
+    <string name="wallpaper_toggle">잠금화면 배경에 메모 표시 (겹침 없음)</string>
+    <string name="wallpaper_help">메모를 잠금화면 배경에 한 줄씩 그려요. 알림은 입력용 하나만 남아요.</string>
+    <string name="pick_background">배경 사진</string>
+    <string name="wallpaper_confirm_title">잠금화면 배경을 바꿀까요?</string>
+    <string name="wallpaper_confirm">지금 잠금화면 배경 대신 메모가 적힌 배경으로 바뀌어요. 이 기능을 끄면 잠금화면은 홈 화면 배경으로 돌아가요.</string>
+    <string name="turn_on">켜기</string>
+    <string name="background_options">배경 사진</string>
+    <string name="background_pick">사진 고르기</string>
+    <string name="background_default">기본 배경(어두운 색)</string>
+    <string name="background_failed">사진을 불러오지 못했어요</string>
 </resources>

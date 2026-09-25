@@ -81,19 +81,29 @@ object MemoNotifier {
         if (!MemoStore.isLockScreenEnabled(context)) {
             alarms.cancel(refreshIntent)
             ROW_IDS.forEach { manager.cancel(it) }
+            LockWallpaper.clear(context)
             return
         }
-        if (!canNotify(context)) return
-        ensureChannel(context)
 
         val now = System.currentTimeMillis()
         val memos = MemoStore.sorted(context, now)
-        val rows: List<Memo?> = memos.take(MAX_ROWS).ifEmpty { listOf(null) }
-        rows.forEachIndexed { index, memo ->
-            @Suppress("MissingPermission")
-            manager.notify(ROW_IDS[index], buildRow(context, memo, index, now))
+        val wallpaperMode = MemoStore.isWallpaperMode(context)
+        if (wallpaperMode) {
+            LockWallpaper.update(context, memos.map { DueFormat.line(context, it, now) })
+        } else {
+            LockWallpaper.clear(context)
         }
-        ROW_IDS.drop(rows.size).forEach { manager.cancel(it) }
+
+        if (canNotify(context)) {
+            ensureChannel(context)
+            // 배경화면 모드에서는 메모는 배경에 그리고, 알림은 입력용 하나만 둔다
+            val rows: List<Memo?> = if (wallpaperMode) listOf(null) else memos.take(MAX_ROWS).ifEmpty { listOf(null) }
+            rows.forEachIndexed { index, memo ->
+                @Suppress("MissingPermission")
+                manager.notify(ROW_IDS[index], buildRow(context, memo, index, now))
+            }
+            ROW_IDS.drop(rows.size).forEach { manager.cancel(it) }
+        }
 
         // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.
         // 정확할 필요는 없어서 정확한 알람 권한 없이 쓸 수 있는 방식을 쓴다.
