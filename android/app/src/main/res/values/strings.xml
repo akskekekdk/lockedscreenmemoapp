@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">조상원 주식</string>
+    <string name="widget_desc">분석 상위 3종목과 실시간 등락률</string>
 </resources>

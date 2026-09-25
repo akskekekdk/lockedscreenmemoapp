@@ -52,6 +52,16 @@ public class MainActivity extends Activity {
             }
         });
 
+        // 잠금화면 알림 권한(Android 13+)을 요청하고, 위젯·알림 갱신을 시작한다.
+        if (android.os.Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+        LockScreenNotifier.show(this, TopStocks.load(this));
+        UpdateJobService.schedule(this);
+        UpdateJobService.runNow(this);
+
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
         } else {
@@ -68,6 +78,12 @@ public class MainActivity extends Activity {
         } else {
             webView.reload();
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        UpdateJobService.runNow(this);  // 허용 직후 바로 알림을 띄운다
     }
 
     @Override
