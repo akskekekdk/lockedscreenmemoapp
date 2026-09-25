@@ -95,7 +95,7 @@ cp app/build/outputs/apk/release/app-release.apk ../web/josangwon-stock.apk
 ```
 
 **상위 3종목 표시**
-- **잠금화면 알림**: 상위 3종목의 이름·실시간 가격·등락률·신호를 소리 없는 고정 알림으로 보여줍니다. 잠금화면에 그대로 보입니다(안드로이드 13 이상은 처음 실행할 때 알림 허용 필요).
+- **알림창 표시**: 상위 3종목의 이름·실시간 가격·등락률·신호를 알림창(내려서 보는 패널)에 소리·진동·팝업 없이 계속 띄워 둡니다(안드로이드 13 이상은 처음 실행할 때 알림 허용 필요).
 - **위젯**: 홈 화면에 "조상원 주식 TOP3" 위젯을 추가할 수 있습니다. 잠금화면 위젯을 지원하는 기기에서는 잠금화면에도 올릴 수 있습니다.
 - 30분마다(와이파이·데이터 연결 시) 최신 분석 결과와 네이버 실시간 시세로 갱신하고, 재부팅 후에도 이어갑니다.
 
@@ -110,6 +110,6 @@ screener/scoring.py    재무 지표, 필터, 업종 내 백분위 점수, 경�
 screener/technical.py  이동평균·RSI·MACD·볼린저·ATR, 신호, 시장 국면, 손절·비중
 screener/main.py       실행 진입점, DART 캐시, 결과 JSON·히스토리 저장
 web/                   웹앱 (index.html, app.js, style.css, manifest.json, 아이콘, APK)
-android/               안드로이드 앱 (WebView + TOP3 위젯·잠금화면 알림)
+android/               안드로이드 앱 (WebView + TOP3 위젯·알림창 표시)
 .github/workflows/screener.yml  평일 2회 실행 후 gh-pages에 게시
 ```

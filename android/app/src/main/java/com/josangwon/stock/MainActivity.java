@@ -122,8 +122,8 @@ public class MainActivity extends Activity {
 
     private void askNotificationSettings() {
         new android.app.AlertDialog.Builder(this)
-                .setTitle("잠금화면 알림이 꺼져 있어요")
-                .setMessage("상위 3종목을 잠금화면에 보려면 '조상원 주식' 알림을 켜 주세요.")
+                .setTitle("알림이 꺼져 있어요")
+                .setMessage("상위 3종목을 알림창에 보려면 '조상원 주식' 알림을 켜 주세요. 소리나 팝업은 없습니다.")
                 .setPositiveButton("설정 열기", (d, w) -> {
                     try {
                         startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)

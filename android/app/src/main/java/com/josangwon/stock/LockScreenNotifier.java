@@ -7,12 +7,12 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 
-/** 잠금화면에 보이는 고정 알림: 상위 3종목. 소리·진동 없이 조용히 갱신된다. */
+/** 알림창(내려서 보는 패널)에 조용히 떠 있는 상위 3종목. 소리·진동·팝업 없이 갱신된다. */
 final class LockScreenNotifier {
 
-    // 중요도 '낮음' 채널(top3)은 무음 알림이라 잠금화면에서 숨겨졌다. 채널 중요도는 나중에 못 바꾸므로 새 채널을 쓴다.
-    private static final String OLD_CHANNEL = "top3";
-    private static final String CHANNEL = "top3_lock";
+    // 채널 중요도는 만든 뒤에 못 바꾸므로 예전 채널(top3, top3_lock)은 지우고 새 채널을 쓴다.
+    private static final String[] OLD_CHANNELS = {"top3", "top3_lock"};
+    private static final String CHANNEL = "top3_panel";
     private static final int ID = 3;
 
     static boolean enabled(Context c) {
@@ -24,11 +24,10 @@ final class LockScreenNotifier {
 
     static void ensureChannel(Context c) {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
-        nm.deleteNotificationChannel(OLD_CHANNEL);
-        // 기본 중요도(잠금화면에 표시) + 소리·진동 없음
-        NotificationChannel ch = new NotificationChannel(CHANNEL, "상위 3종목 (잠금화면)", NotificationManager.IMPORTANCE_DEFAULT);
-        ch.setDescription("분석 상위 3종목을 잠금화면과 알림창에 계속 보여줍니다. 소리·진동 없음.");
-        ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        for (String old : OLD_CHANNELS) nm.deleteNotificationChannel(old);
+        // 중요도 '낮음': 알림창에만 표시, 소리·진동·팝업 없음
+        NotificationChannel ch = new NotificationChannel(CHANNEL, "상위 3종목 (알림창)", NotificationManager.IMPORTANCE_LOW);
+        ch.setDescription("분석 상위 3종목을 알림창에 조용히 계속 보여줍니다.");
         ch.setSound(null, null);
         ch.enableVibration(false);
         ch.enableLights(false);
