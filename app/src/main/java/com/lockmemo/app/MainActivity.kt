@@ -3,9 +3,11 @@ package com.lockmemo.app
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +17,7 @@ import android.widget.EditText
 import android.widget.ListView
 import android.widget.Switch
 import android.widget.TextView
+import androidx.core.app.NotificationManagerCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,7 +59,10 @@ class MainActivity : Activity() {
             MemoStore.setLockScreenEnabled(this, checked)
             if (checked) requestNotificationPermissionIfNeeded()
             MemoNotifier.refresh(this)
+            updateProblem()
         }
+
+        findViewById<View>(R.id.open_settings).setOnClickListener { openNotificationSettings() }
 
         if (MemoStore.isLockScreenEnabled(this)) requestNotificationPermissionIfNeeded()
     }
@@ -65,11 +71,32 @@ class MainActivity : Activity() {
         super.onResume()
         reload()
         MemoNotifier.refresh(this)
+        updateProblem()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         MemoNotifier.refresh(this)
+        updateProblem()
+    }
+
+    /** 잠금화면 표시를 켰는데 알림 설정이 막고 있으면 원인과 설정 바로가기를 보여준다. */
+    private fun updateProblem() {
+        val reason = if (MemoStore.isLockScreenEnabled(this)) MemoNotifier.blockingReason(this) else null
+        findViewById<View>(R.id.problem_box).visibility = if (reason == null) View.GONE else View.VISIBLE
+        if (reason != null) findViewById<TextView>(R.id.problem_text).setText(reason)
+    }
+
+    private fun openNotificationSettings() {
+        val notificationsOn = MemoNotifier.canNotify(this) &&
+            NotificationManagerCompat.from(this).areNotificationsEnabled()
+        val intent = if (notificationsOn) {
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, MemoNotifier.CHANNEL_ID)
+        } else {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        }.putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        startActivity(intent)
     }
 
     private fun requestNotificationPermissionIfNeeded() {

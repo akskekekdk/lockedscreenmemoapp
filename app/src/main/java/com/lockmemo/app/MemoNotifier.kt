@@ -22,21 +22,29 @@ import java.util.Locale
  * - "한 줄 메모" 버튼으로 잠금을 풀지 않고 바로 입력(인라인 답장)할 수 있다.
  */
 object MemoNotifier {
-    const val CHANNEL_ID = "lockscreen_memo"
+    // 중요도는 채널을 만든 뒤 바꿀 수 없어서, 바꿀 때마다 새 ID를 쓴다
+    const val CHANNEL_ID = "lockscreen_memo_v2"
+    private val OLD_CHANNEL_IDS = listOf("lockscreen_memo")
     const val NOTIFICATION_ID = 1
     const val KEY_TEXT = "memo_text"
     private const val PREVIEW_LINES = 5
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
+        OLD_CHANNEL_IDS.forEach { manager.deleteNotificationChannel(it) }
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        // IMPORTANCE_LOW 이하는 "무음 알림"으로 분류되어 대부분의 기기에서 잠금화면에 표시되지 않는다.
+        // 그래서 DEFAULT 로 두고 소리/진동만 끈다.
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.channel_name),
-            NotificationManager.IMPORTANCE_LOW, // 소리/진동 없이 조용히 표시
+            NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
             description = context.getString(R.string.channel_desc)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            setSound(null, null)
+            enableVibration(false)
+            enableLights(false)
             setShowBadge(false)
         }
         manager.createNotificationChannel(channel)
@@ -46,6 +54,22 @@ object MemoNotifier {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+
+    /** 잠금화면에 알림이 보이지 않게 막고 있는 앱 쪽 설정. 문제없으면 null. */
+    fun blockingReason(context: Context): Int? {
+        if (!canNotify(context) || !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return R.string.problem_notifications_off
+        }
+        ensureChannel(context)
+        val channel = context.getSystemService(NotificationManager::class.java)
+            .getNotificationChannel(CHANNEL_ID)
+        return when {
+            channel.importance == NotificationManager.IMPORTANCE_NONE -> R.string.problem_channel_off
+            channel.importance < NotificationManager.IMPORTANCE_DEFAULT -> R.string.problem_channel_silent
+            channel.lockscreenVisibility == android.app.Notification.VISIBILITY_SECRET -> R.string.problem_channel_secret
+            else -> null
+        }
+    }
 
     /** 설정에 따라 알림을 띄우거나 내린다. 메모가 바뀔 때마다 호출. */
     fun refresh(context: Context) {
@@ -104,7 +128,7 @@ object MemoNotifier {
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
             .setDeleteIntent(actionIntent(context, MemoActionReceiver.ACTION_REPOST, 3))
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
