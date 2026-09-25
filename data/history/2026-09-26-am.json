@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-26T01:18+09:00",
+ "generated_at": "2026-09-26T01:58+09:00",
  "session": "am",
  "price_source": "naver",
  "fiscal_year": 2025,
@@ -66,8 +66,8 @@
    }
   },
   "usdkrw": {
-   "close": 1355.7,
-   "change_1m": -0.021861471861471804
+   "close": 1358.7,
+   "change_1m": -0.019696969696969657
   },
   "foreign_flow": {
    "date": "20260923",
@@ -194,7 +194,7 @@
     "flow": 10
    },
    "rank": 1,
-   "prev_rank": null
+   "prev_rank": 1
   },
   {
    "code": "402340",
@@ -250,7 +250,7 @@
     "flow": 5
    },
    "rank": 2,
-   "prev_rank": null
+   "prev_rank": 2
   },
   {
    "code": "114810",
@@ -305,7 +305,7 @@
     "flow": 5
    },
    "rank": 3,
-   "prev_rank": null
+   "prev_rank": 3
   },
   {
    "code": "119850",
@@ -358,7 +358,7 @@
     "flow": 5
    },
    "rank": 4,
-   "prev_rank": null
+   "prev_rank": 4
   },
   {
    "code": "059090",
@@ -415,7 +415,7 @@
     "flow": 10
    },
    "rank": 5,
-   "prev_rank": null
+   "prev_rank": 5
   },
   {
    "code": "000660",
@@ -470,7 +470,7 @@
     "flow": 0
    },
    "rank": 6,
-   "prev_rank": null
+   "prev_rank": 6
   },
   {
    "code": "051360",
@@ -523,7 +523,7 @@
     "flow": 10
    },
    "rank": 7,
-   "prev_rank": null
+   "prev_rank": 7
   },
   {
    "code": "019010",
@@ -579,7 +579,7 @@
     "flow": 5
    },
    "rank": 8,
-   "prev_rank": null
+   "prev_rank": 8
   },
   {
    "code": "098120",
@@ -632,7 +632,7 @@
     "flow": 10
    },
    "rank": 9,
-   "prev_rank": null
+   "prev_rank": 9
   },
   {
    "code": "272110",
@@ -688,7 +688,7 @@
     "flow": 5
    },
    "rank": 10,
-   "prev_rank": null
+   "prev_rank": 10
   },
   {
    "code": "053610",
@@ -744,7 +744,7 @@
     "flow": 5
    },
    "rank": 11,
-   "prev_rank": null
+   "prev_rank": 11
   },
   {
    "code": "445180",
@@ -797,7 +797,7 @@
     "flow": 10
    },
    "rank": 12,
-   "prev_rank": null
+   "prev_rank": 12
   },
   {
    "code": "204620",
@@ -850,7 +850,7 @@
     "flow": 5
    },
    "rank": 13,
-   "prev_rank": null
+   "prev_rank": 13
   },
   {
    "code": "006910",
@@ -903,7 +903,7 @@
     "flow": 0
    },
    "rank": 14,
-   "prev_rank": null
+   "prev_rank": 14
   },
   {
    "code": "311320",
@@ -956,7 +956,7 @@
     "flow": 10
    },
    "rank": 15,
-   "prev_rank": null
+   "prev_rank": 15
   },
   {
    "code": "036030",
@@ -1009,7 +1009,7 @@
     "flow": 10
    },
    "rank": 16,
-   "prev_rank": null
+   "prev_rank": 16
   },
   {
    "code": "003350",
@@ -1062,7 +1062,7 @@
     "flow": 5
    },
    "rank": 17,
-   "prev_rank": null
+   "prev_rank": 17
   },
   {
    "code": "049520",
@@ -1115,7 +1115,7 @@
     "flow": 10
    },
    "rank": 18,
-   "prev_rank": null
+   "prev_rank": 18
   },
   {
    "code": "037460",
@@ -1171,7 +1171,7 @@
     "flow": 5
    },
    "rank": 19,
-   "prev_rank": null
+   "prev_rank": 19
   },
   {
    "code": "062040",
@@ -1226,7 +1226,7 @@
     "flow": 5
    },
    "rank": 20,
-   "prev_rank": null
+   "prev_rank": 20
   },
   {
    "code": "461300",
@@ -1279,7 +1279,7 @@
     "flow": 5
    },
    "rank": 21,
-   "prev_rank": null
+   "prev_rank": 21
   },
   {
    "code": "017510",
@@ -1334,7 +1334,7 @@
     "flow": 5
    },
    "rank": 22,
-   "prev_rank": null
+   "prev_rank": 22
   },
   {
    "code": "124500",
@@ -1389,7 +1389,7 @@
     "flow": 5
    },
    "rank": 23,
-   "prev_rank": null
+   "prev_rank": 23
   },
   {
    "code": "025560",
@@ -1446,7 +1446,7 @@
     "flow": 0
    },
    "rank": 24,
-   "prev_rank": null
+   "prev_rank": 24
   },
   {
    "code": "123330",
@@ -1501,7 +1501,7 @@
     "flow": 5
    },
    "rank": 25,
-   "prev_rank": null
+   "prev_rank": 25
   },
   {
    "code": "033100",
@@ -1554,7 +1554,7 @@
     "flow": 5
    },
    "rank": 26,
-   "prev_rank": null
+   "prev_rank": 26
   },
   {
    "code": "110990",
@@ -1609,7 +1609,7 @@
     "flow": 5
    },
    "rank": 27,
-   "prev_rank": null
+   "prev_rank": 27
   },
   {
    "code": "143240",
@@ -1665,7 +1665,7 @@
     "flow": 5
    },
    "rank": 28,
-   "prev_rank": null
+   "prev_rank": 28
   },
   {
    "code": "031330",
@@ -1721,7 +1721,7 @@
     "flow": 5
    },
    "rank": 29,
-   "prev_rank": null
+   "prev_rank": 29
   },
   {
    "code": "265740",
@@ -1777,7 +1777,7 @@
     "flow": 5
    },
    "rank": 30,
-   "prev_rank": null
+   "prev_rank": 30
   }
  ]
 }
