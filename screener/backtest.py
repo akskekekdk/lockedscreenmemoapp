@@ -163,8 +163,35 @@ def month_ends(index: pd.DatetimeIndex, start: str, end: str) -> list[pd.Timesta
     return list(s.groupby([s.index.year, s.index.month]).max())
 
 
-def build_panel(prices, dart_rows, shares, sectors, dates) -> pd.DataFrame:
+def report_year(date: pd.Timestamp) -> int:
+    """그 날짜에 공개돼 있던 가장 최근 사업보고서의 사업연도(3월 말 공시)."""
+    return date.year - 1 if date.month >= 4 else date.year - 2
+
+
+def fundamentals_from_history(hist: dict, code: str, date: pd.Timestamp) -> dict | None:
+    """연도별 사업보고서 원본(fetch_history)에서 그 시점의 재무를 꺼낸다."""
+    row = hist.get((code, report_year(date)))
+    if not row:
+        return None
+    out = {
+        "net_income": row.get("net_income"), "op_income": row.get("op_income"),
+        "op_income_prev": row.get("op_income_prev"), "revenue": row.get("revenue"),
+        "revenue_prev": row.get("revenue_prev"), "equity": row.get("equity"),
+        "equity_prev": row.get("equity_prev"), "liabilities": row.get("liabilities"),
+    }
+    optional = {"equity_prev", "op_income_prev", "revenue_prev"}
+    if any(v is None or (isinstance(v, float) and math.isnan(v)) for k, v in out.items() if k not in optional):
+        return None
+    for k in optional:
+        if isinstance(out[k], float) and math.isnan(out[k]):
+            out[k] = None
+    return out
+
+
+def build_panel(prices, dart_rows, shares, sectors, dates, history: dict | None = None) -> pd.DataFrame:
+    """history: {"2019": [records...], ...} 연도별 사업보고서. 있으면 우선 쓰고, 없는 연도는 dart_rows로."""
     fund_by_code = {r["code"]: r for r in dart_rows}
+    hist = {(r["code"], int(y)): r for y, recs in (history or {}).items() for r in recs}
     rows = []
     for code, df in prices.items():
         f = daily_features(df)
@@ -174,8 +201,10 @@ def build_panel(prices, dart_rows, shares, sectors, dates) -> pd.DataFrame:
                 continue
             rec = {"date": d, "code": code, "sector": sectors.get(code), **x.to_dict()}
             rec["market_cap"] = shares.get(code, np.nan) * x["close"]
-            fr = fund_by_code.get(code)
-            fa = fundamentals_asof(fr, d) if fr else None
+            fa = fundamentals_from_history(hist, code, d) if hist else None
+            if fa is None:
+                fr = fund_by_code.get(code)
+                fa = fundamentals_asof(fr, d) if fr else None
             if fa:
                 eq_avg = np.nanmean([fa["equity"], fa["equity_prev"] if fa["equity_prev"] is not None else np.nan])
                 rec.update(
