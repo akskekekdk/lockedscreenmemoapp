@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>조상원 주식</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="조상원 주식">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="wrap">
+  <h1><img src="favicon.png" alt="" class="logo">조상원 주식</h1>
+  <p class="sub">재무로 좋은 회사를 고르고, 차트·수급으로 타이밍을 보고, 시장 국면에 맞춰 비중과 손절가를 정합니다. 평일 오전·오후 자동 분석.</p>
+  <div class="bar">
+    <label>분석 시점
+      <select id="run"></select>
+    </label>
+    <span id="meta" class="meta"></span>
+    <a id="apk" class="apk" href="josangwon-stock.apk" download>안드로이드 앱(APK) 받기</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="regime" class="regime"></section>
+
+  <h2>이번 회차 매수 관심 포트폴리오</h2>
+  <p class="hint">재무·기술 조건을 모두 만족한 종목만 담고, 손절 시 전체 자산의 1%만 잃도록 비중을 정했습니다.</p>
+  <section id="portfolio"></section>
+
+  <h2>종합 순위</h2>
+  <div class="tabs" role="tablist">
+    <button type="button" data-view="summary" class="on">요약</button>
+    <button type="button" data-view="fund">재무 지표</button>
+    <button type="button" data-view="tech">기술·수급</button>
+  </div>
+  <div class="table-scroll">
+    <table id="table">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <section id="summary" class="stats"></section>
+
+  <details class="method">
+    <summary>점수 계산·매매 규칙</summary>
+    <div id="method"></div>
+  </details>
+
+  <p class="disclaimer">
+    이 페이지는 공개된 재무·시세 데이터를 정해진 규칙으로 정렬한 참고 자료이며 투자 권유가 아닙니다.
+    재무 수치는 최근 사업보고서(연간) 기준이고, 시세는 분석 시점 기준입니다. 신용잔고·공매도 데이터는 반영하지 않았습니다.
+    투자 판단과 책임은 본인에게 있습니다.
+  </p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
