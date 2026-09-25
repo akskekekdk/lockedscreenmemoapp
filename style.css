@@ -129,3 +129,13 @@ tr.total td { font-weight: 600; }
 .tabs { align-items: center; flex-wrap: wrap; }
 .tabs .sort { margin-left: auto; font-size: 13px; color: var(--muted); }
 .tabs .sort select { padding: 5px 8px; font-size: 13px; }
+.pad { padding: 14px 16px; }
+.events { margin: 6px 0 0; padding-left: 18px; }
+.events li { margin: 4px 0; font-size: 14px; }
+.chart { width: 100%; height: auto; display: block; margin: 6px 0 12px; }
+.chart .axis { font-size: 11px; fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.ic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 8px; }
+.ic-grid table td { padding: 4px 8px; }
+#backtest table { margin-bottom: 8px; }

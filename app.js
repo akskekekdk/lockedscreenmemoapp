@@ -1,18 +1,4 @@
-const FUND_METRICS = [
-  ["per", "PER(업종 내 비교)", "낮을수록"], ["pbr", "PBR(업종 내 비교)", "낮을수록"], ["roe", "ROE", "높을수록"],
-  ["rev_cagr", "매출 성장률(최근 2년 연평균)", "높을수록"], ["op_cagr", "영업이익 성장률(최근 2년 연평균)", "높을수록"],
-  ["debt_ratio", "부채비율", "낮을수록"], ["fcf", "FCF 수익률(잉여현금흐름 ÷ 시가총액)", "높을수록"],
-];
-const TECH_LABELS = {
-  trend: "추세: 200일선 위 15 · 50일선>200일선 10 · 50일선 위 5",
-  momentum: "모멘텀: 12-1개월 수익률 후보 내 백분위",
-  rsi: "RSI(14): 45~70 만점, 70~75 절반, 35~45 일부, 극단 0",
-  macd: "MACD: 시그널 위 5 · 히스토그램 확대 5",
-  bollinger: "볼린저: 밴드 수축(스퀴즈) 뒤 중심선 위",
-  volume: "거래량: 최근 20일 상승일/하락일 거래량 ≥1.2 만점, ≥1.0 절반",
-  flow: "수급: 20일 외국인 순매수 5 · 기관 순매수 5",
-};
-const SIGNAL_CLASS = { "매수 관심": "buy", "관망": "wait", "과열 주의": "hot", "추세 이탈": "broken", "데이터 부족": "wait" };
+const SIGNAL_CLASS = { "매수 관심": "buy", "후보": "hot", "관망": "wait", "과열 주의": "hot", "추세 이탈": "broken", "데이터 부족": "wait" };
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -21,7 +7,7 @@ let current = null;
 let view = "summary";
 let sort = "score";
 // 매수 관심 우선 정렬 순서 (안드로이드 TopStocks.SIGNAL_ORDER와 같게 유지)
-const SIGNAL_ORDER = ["매수 관심", "관망", "과열 주의", "추세 이탈"];
+const SIGNAL_ORDER = ["매수 관심", "후보", "관망", "과열 주의", "추세 이탈"];
 const signalRank = (s) => { const i = SIGNAL_ORDER.indexOf(s); return i < 0 ? SIGNAL_ORDER.length : i; };
 
 function sortedStocks(stocks) {
@@ -79,53 +65,38 @@ function bar(v, cls = "") {
   return `<span class="track ${cls}"><span class="fill" style="width:${Math.max(0, Math.min(100, v ?? 0))}%"></span></span>`;
 }
 function flagsHtml(s) {
-  const good = new Set(["흑자전환"]);
-  const all = [...(s.flags || [])];
-  if (s.golden_recent) all.push("골든크로스");
-  if (s.squeeze_breakout) all.push("변동성 돌파");
-  const extraGood = new Set(["골든크로스", "변동성 돌파"]);
-  return all.map((f) => `<span class="flag${good.has(f) || extraGood.has(f) ? " good" : ""}">${esc(f)}</span>`).join("");
+  return (s.flags || []).map((f) => `<span class="flag${f === "흑자전환" ? " good" : ""}">${esc(f)}</span>`).join("");
 }
-function stopCell(s) {
-  return s.stop == null ? `<td>${dash}</td>` : `<td>${num(s.stop, 0)}<small class="block muted">-${num(s.stop_pct * 100, 1)}%</small></td>`;
+function naverLink(code, name) {
+  return `<a href="https://m.stock.naver.com/domestic/stock/${esc(code)}" target="_blank" rel="noopener">${esc(name)}</a>`;
 }
 
 const VIEWS = {
   summary: {
-    head: ["순위", "종목", "현재가", "신호", "종합 점수", "재무", "기술", "손절가", "체크"],
+    head: ["순위", "종목", "현재가", "신호", "점수", "가치", "모멘텀", "저변동", "체크"],
     left: new Set([1, 4, 8]),
     row: (s) => `${rankCell(s)}${nameCell(s)}${priceCell(s)}
       <td>${chip(s.signal, SIGNAL_CLASS[s.signal] || "wait")}</td>
       <td class="left score">${bar(s.score)}<b>${num(s.score)}</b></td>
-      <td>${num(s.fund_score, 0)}</td><td>${num(s.tech_score, 0)}</td>
-      ${stopCell(s)}<td class="left">${flagsHtml(s)}</td>`,
+      <td>${num(s.s_value, 0)}</td><td>${num(s.s_momentum, 0)}</td><td>${num(s.s_low_vol, 0)}</td>
+      <td class="left">${flagsHtml(s)}</td>`,
   },
   fund: {
-    head: ["순위", "종목", "시가총액", "PER", "PBR", "ROE", "매출성장", "영업이익성장", "부채비율", "FCF수익률", "재무 점수"],
+    head: ["순위", "종목", "시가총액", "PER", "PBR", "ROE", "매출성장", "영업이익성장", "부채비율", "FCF수익률"],
     left: new Set([1]),
-    row: (s) => {
-      const title = FUND_METRICS.map(([k, l]) => `${l.split("(")[0]} ${Math.round(s[`s_${k}`] ?? 0)}점`).join(" · ");
-      return `${rankCell(s)}${nameCell(s)}<td>${won(s.market_cap)}</td>
+    row: (s) => `${rankCell(s)}${nameCell(s)}<td>${won(s.market_cap)}</td>
       <td>${num(s.per)}</td><td>${num(s.pbr, 2)}</td><td>${pct(s.roe)}</td>
       <td>${pct(s.rev_cagr)}</td><td>${pct(s.op_cagr)}</td>
-      <td>${s.debt_ratio == null ? dash : `${num(s.debt_ratio, 0)}%`}</td><td>${pct(s.fcf_yield)}</td>
-      <td title="${esc(title)}"><b>${num(s.fund_score)}</b></td>`;
-    },
+      <td>${s.debt_ratio == null ? dash : `${num(s.debt_ratio, 0)}%`}</td><td>${pct(s.fcf_yield)}</td>`,
   },
   tech: {
-    head: ["순위", "종목", "신호", "200일선 대비", "RSI", "12-1개월", "3개월", "상승/하락 거래량", "외국인 20일", "기관 20일", "기술 점수"],
+    head: ["순위", "종목", "12-1개월", "3개월", "1개월", "변동성(연)", "52주고가 대비", "200일선 대비", "외국인 20일", "기관 20일"],
     left: new Set([1]),
-    row: (s) => {
-      const p = s.tech_points || {};
-      const title = Object.entries(p).map(([k, v]) => `${k} ${v}`).join(" · ");
-      return `${rankCell(s)}${nameCell(s)}
-      <td>${chip(s.signal, SIGNAL_CLASS[s.signal] || "wait")}</td>
-      <td>${signedPct(s.dist_ma200)}</td><td>${num(s.rsi, 0)}</td>
-      <td>${signedPct(s.mom_12_1)}</td><td>${signedPct(s.ret_3m)}</td>
-      <td>${s.up_down_volume == null ? dash : num(s.up_down_volume, 2)}</td>
-      <td>${won(s.foreign_20d)}</td><td>${won(s.institution_20d)}</td>
-      <td title="${esc(title)}"><b>${num(s.tech_score, 0)}</b></td>`;
-    },
+    row: (s) => `${rankCell(s)}${nameCell(s)}
+      <td>${signedPct(s.mom_12_1)}</td><td>${signedPct(s.ret_3m)}</td><td>${signedPct(s.ret_1m)}</td>
+      <td>${s.vol_60 == null ? dash : pct(s.vol_60 * Math.sqrt(250), 0)}</td>
+      <td>${s.high_52w == null ? dash : signedPct(s.high_52w - 1)}</td><td>${signedPct(s.dist_ma200)}</td>
+      <td>${won(s.foreign_20d)}</td><td>${won(s.institution_20d)}</td>`,
   },
 };
 
@@ -146,61 +117,104 @@ function renderRegime(report) {
     <div class="stat"><span>${esc(name)}</span><b>${num(d.close, 2)}</b>
       <span>200일선 ${signedPct(d.dist_ma200)} · 1개월 ${signedPct(d.ret_1m)} · ${esc(d.trend)}</span></div>`).join("");
   const fx = r.usdkrw ? `<div class="stat"><span>원·달러</span><b>${num(r.usdkrw.close, 1)}</b>
-      <span>1개월 ${signedPct(r.usdkrw.change_1m)}${r.usdkrw.warning ? ` · <em class="warn">${esc(r.usdkrw.warning)}</em>` : ""}</span></div>` : "";
+      <span>1개월 ${signedPct(r.usdkrw.change_1m)}</span></div>` : "";
   const ff = r.foreign_flow ? `<div class="stat"><span>코스피 당일 수급(억원)</span>
       <b class="${r.foreign_flow.foreign > 0 ? "up" : "down"}">외국인 ${num(r.foreign_flow.foreign, 0)}</b>
       <span>기관 ${num(r.foreign_flow.institution, 0)} · 개인 ${num(r.foreign_flow.individual, 0)}</span></div>` : "";
   $("#regime").innerHTML = `
     <div class="regime-head">
-      <div>${chip(r.regime, cls)} <span class="big">권장 주식 비중 ${Math.round(r.exposure * 100)}%</span></div>
-      <p class="hint">코스피·코스닥이 모두 200일선 위이고 50일선이 200일선 위면 상승장(100%), 둘 다 아래면 하락장(30%), 그 외 중립(60%). 원화가 한 달 새 3% 넘게 약해지면 20%p 줄입니다.</p>
+      <div>시장 상황(참고) ${chip(r.regime, cls)}</div>
+      <p class="hint">백테스트에서 시장 국면에 따라 비중을 줄이는 규칙은 수익만 깎아서, 비중 조절에는 쓰지 않고 참고로만 보여줍니다.</p>
     </div>
     <div class="stats">${idx}${fx}${ff}</div>`;
 }
 
 function renderPortfolio(report) {
   const p = report.portfolio || [];
+  const m = report.model || { hold: 10, keep_rank: 20, stop: 0.15 };
+  $("#portfolio-hint").textContent = `점수 상위 ${m.hold}종목을 ${Math.round(100 / m.hold)}%씩 똑같이 담고, 순위가 ${m.keep_rank}위 밖으로 밀리거나 매수가 대비 -${Math.round(m.stop * 100)}%가 되면 교체합니다.`;
   if (!p.length) {
-    $("#portfolio").innerHTML = '<div class="empty card">이번 회차에는 재무·기술 조건을 모두 만족한 종목이 없습니다. 무리하게 사지 말고 관망하세요.</div>';
+    $("#portfolio").innerHTML = '<div class="empty card">보유 종목이 없습니다.</div>';
     return;
   }
-  const total = p.reduce((a, x) => a + x.weight, 0);
   const rows = p.map((x) => `<tr>
-      <td class="left name"><a href="https://m.stock.naver.com/domestic/stock/${esc(x.code)}" target="_blank" rel="noopener">${esc(x.name)}</a><small>${esc(x.code)}</small></td>
+      <td class="left name">${naverLink(x.code, x.name)}<small>${esc(x.code)} · ${x.rank ?? dash}위</small></td>
+      <td>${x.entry_date ? esc(x.entry_date.slice(5).replace("-", ".")) : dash}<small class="block muted">${num(x.entry_price, 0)}</small></td>
       <td>${num(x.price, 0)}</td>
-      <td class="left score">${bar((x.weight / 0.15) * 100)}<b>${num(x.weight * 100, 1)}%</b></td>
-      <td>${num(x.stop, 0)}<small class="block muted">-${num(x.stop_pct * 100, 1)}%</small></td></tr>`).join("");
+      <td>${x.return == null ? dash : signedPct(x.return)}</td>
+      <td>${num(x.stop, 0)}</td>
+      <td>${num(x.weight * 100, 0)}%</td></tr>`).join("");
+  const ev = (report.events || []).map((e) => `<li>${e.type === "in" ? chip("편입", "buy") : chip("교체", "broken")} ${esc(e.name)} — ${esc(e.reason)}${e.return != null ? ` (${(e.return * 100).toFixed(1)}%)` : ""}</li>`).join("");
   $("#portfolio").innerHTML = `<div class="table-scroll"><table>
-    <thead><tr><th class="left">종목</th><th>현재가</th><th class="left">제안 비중</th><th>손절가</th></tr></thead>
-    <tbody>${rows}<tr class="total"><td class="left">현금</td><td></td><td class="left"><b>${num((1 - total) * 100, 1)}%</b></td><td></td></tr></tbody>
-    </table></div>`;
+    <thead><tr><th class="left">종목</th><th>편입일·가</th><th>현재가</th><th>수익률</th><th>손절가</th><th>비중</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    ${ev ? `<h3>이번 회차 변경</h3><ul class="events">${ev}</ul>` : ""}`;
 }
 
 function renderMethod(report) {
-  const w = report.weights;
-  const blend = report.blend || { fund: 0.6, tech: 0.4 };
-  const risk = report.risk;
+  const m = report.model || { weights: { value: 40, momentum: 40, low_vol: 20 }, hold: 10, keep_rank: 20, stop: 0.15 };
+  const w = m.weights;
   $("#method").innerHTML = `
-    <h3>1. 재무로 후보 고르기 (종합 점수의 ${Math.round(blend.fund * 100)}%)</h3>
-    <p>조건을 통과한 종목 안에서 지표별 백분위(0~100점)를 가중합합니다. PER·PBR은 <b>같은 업종 안에서</b> 비교합니다(업종 종목 5개 미만이면 전체와 비교).</p>
-    <ul>${FUND_METRICS.map(([k, label, dir]) => `<li><b>${label}</b> ${dir} 좋음, 가중치 ${w[k]}%</li>`).join("")}</ul>
-    <p>제외: 우선주·스팩·리츠, 시가총액 ${won(report.filters.min_market_cap)} 미만, 거래정지, 순이익·영업이익 적자, 자본잠식, 매출 정보 없는 회사(은행·보험 등 금융업).</p>
-    <h3>2. 차트·수급으로 타이밍 보기 (${Math.round(blend.tech * 100)}%)</h3>
-    <p>재무 상위 ${report.counts.candidates ?? ""}개 후보의 일봉·수급을 분석합니다. 한 지표만 보지 않고 여러 지표가 같은 방향일 때 점수가 높아집니다.</p>
-    <ul>${Object.entries(report.tech_points || {}).map(([k, v]) => `<li><b>${v}점</b> ${esc(TECH_LABELS[k] || k)}</li>`).join("")}</ul>
-    <p>신호: ${chip("매수 관심", "buy")} 200일선 위 + 50일선>200일선 + RSI 45~72 + MACD 시그널 위 + 기술 점수 60 이상 ·
-      ${chip("과열 주의", "hot")} RSI 75 이상, 20일선보다 15% 넘게 위, 볼린저 상단 크게 돌파 ·
-      ${chip("추세 이탈", "broken")} 200일선 아래 · ${chip("관망", "wait")} 그 외</p>
-    <h3>3. 시장 국면과 리스크</h3>
+    <p>조건을 통과한 종목 안에서 세 가지 지표의 백분위(0~100점)를 가중합합니다. 가중치는 과거 데이터 백테스트로 정했습니다(아래 "검증 결과").</p>
     <ul>
-      <li>손절가: 2×ATR(14), 매수가 대비 ${risk ? `${risk.stop_range[0] * 100}~${risk.stop_range[1] * 100}` : "5~10"}% 범위. 종가가 손절가 아래로 내려가면 매도.</li>
-      <li>비중: 손절 시 자산의 ${risk ? risk.risk_per_trade * 100 : 1}%만 잃도록 (1% ÷ 손절폭), 종목당 최대 ${risk ? risk.max_weight * 100 : 15}%, 최대 ${risk ? risk.max_holdings : 10}종목.</li>
-      <li>전체 주식 비중은 시장 국면의 권장 비중을 넘지 않게 줄입니다. 나머지는 현금.</li>
+      <li><b>가치 ${w.value}%</b> — 같은 업종 안에서 PBR·PER이 낮을수록 높은 점수(업종 종목 5개 미만이면 전체와 비교)</li>
+      <li><b>모멘텀 ${w.momentum}%</b> — 12-1개월 수익률(최근 1개월은 단기 반전이 강해 제외)</li>
+      <li><b>저변동성 ${w.low_vol}%</b> — 최근 60거래일 주가 변동이 작을수록 높은 점수</li>
     </ul>
+    <p>대상: 우선주·스팩·리츠를 뺀 보통주 중 시가총액 ${won(report.filters.min_market_cap)} 이상, 거래정지 아님, 순이익·영업이익 흑자, 자본잠식 아님, 매출 정보 있음(은행·보험 등 금융업은 제외됨).</p>
+    <p>신호: ${chip("매수 관심", "buy")} 보유 목록(${m.hold}종목) · ${chip("후보", "hot")} ${m.keep_rank}위 안이지만 보유 목록에 빈자리가 없음 · ${chip("관망", "wait")} 그 외</p>
+    <p>ROE·성장률·부채비율·FCF·외국인·기관 수급은 점수에 넣지 않고 참고로만 보여줍니다(검증에서 효과가 없었거나 과거 데이터가 없음).</p>
     <p>표시: <span class="flag">가치함정 주의</span> PBR<1인데 ROE<8% · <span class="flag">고부채</span> 부채비율>200% ·
     <span class="flag">FCF 적자</span> · <span class="flag">일회성 이익 의심</span> 순이익이 영업이익의 1.5배 초과 ·
-    <span class="flag">이익의 질 낮음</span> 영업현금흐름<순이익 · <span class="flag good">흑자전환</span> ·
-    <span class="flag good">골든크로스</span> 최근 20일 내 50일선이 200일선 돌파 · <span class="flag good">변동성 돌파</span> 볼린저 스퀴즈 후 상승</p>`;
+    <span class="flag">이익의 질 낮음</span> 영업현금흐름<순이익 · <span class="flag good">흑자전환</span></p>`;
+}
+
+function equityChart(bt) {
+  const series = [["new", "새 모델", "var(--accent)"], ["old", "이전 모델", "var(--warn)"], ["bench", "벤치마크", "var(--muted)"]];
+  const eq = {};
+  let max = 1, min = 1;
+  for (const [k] of series) {
+    let v = 1;
+    eq[k] = [1, ...bt.monthly[k].map((r) => (v *= 1 + (r ?? 0)))];
+    max = Math.max(max, ...eq[k]); min = Math.min(min, ...eq[k]);
+  }
+  const W = 640, H = 220, pad = 30, n = eq.new.length;
+  const x = (i) => pad + (i / (n - 1)) * (W - pad * 2);
+  const y = (v) => H - pad - ((v - min) / (max - min)) * (H - pad * 2);
+  const lines = series.map(([k, , c]) => `<polyline fill="none" stroke="${c}" stroke-width="${k === "new" ? 2.5 : 1.5}" points="${eq[k].map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>`).join("");
+  const base = `<line x1="${pad}" x2="${W - pad}" y1="${y(1)}" y2="${y(1)}" stroke="var(--line)"/>`;
+  const legend = series.map(([k, name, c]) => `<span><i style="background:${c}"></i>${name} ${((eq[k][n - 1] - 1) * 100).toFixed(0)}%</span>`).join("");
+  return `<div class="legend">${legend}</div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="누적 수익률">${base}${lines}
+    <text x="${pad}" y="${H - 8}" class="axis">${bt.monthly.dates[0]}</text><text x="${W - pad}" y="${H - 8}" text-anchor="end" class="axis">${bt.monthly.dates[n - 2]}</text></svg>`;
+}
+
+async function renderBacktest() {
+  let bt;
+  try {
+    const res = await fetch("backtest.json", { cache: "no-store" });
+    if (!res.ok) return;
+    bt = await res.json();
+  } catch (_) { return; }
+  const SHORT = { new: "새 모델", old: "이전 모델", value: "가치만", bench: "벤치마크" };
+  const rows = ["new", "old", "value", "bench"].map((k) => {
+    const m = bt.models[k];
+    return `<tr${k === "new" ? ' class="total"' : ""}><td class="left" title="${esc(m.name)}">${SHORT[k]}</td><td>${num(m["ann%"])}%</td><td>${num(m.sharpe, 2)}</td><td>${num(m["mdd%"])}%</td><td>${num(m["hit%"], 0)}%</td></tr>`;
+  }).join("");
+  const ic = (list) => list.map((r) => `<tr><td class="left">${esc(r.factor)}</td><td class="${r.ic > 0 ? "up" : "down"}">${r.ic > 0 ? "+" : ""}${r.ic.toFixed(3)}</td><td>${r.t.toFixed(1)}</td></tr>`).join("");
+  $("#backtest").innerHTML = `
+    <p>${esc(bt.method)} 기간 ${bt.period[0]} ~ ${bt.period[1]} (월 ${bt.models.new.n}회). 대상: ${esc(bt.universe)}.</p>
+    ${equityChart(bt)}
+    <div class="table-scroll"><table>
+      <thead><tr><th class="left">방식</th><th>연수익</th><th>샤프</th><th>최대낙폭</th><th>월 승률</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <ul class="hint">${["new", "old", "value", "bench"].map((k) => `<li>${SHORT[k]}: ${esc(bt.models[k].name.replace(/^[^:]+: ?/, ""))}</li>`).join("")}</ul>
+    <h3>알게 된 것</h3><ul>${bt.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
+    <details><summary>지표별 예측력(IC: 다음 달 수익률 순위와의 상관, t값 2 이상이면 의미 있음)</summary>
+      <div class="ic-grid">
+        <div><h3>가격 지표 · ${bt.tech_period[0].slice(0, 4)}~${bt.tech_period[1].slice(0, 4)}</h3><table><tbody>${ic(bt.ic_long)}</tbody></table></div>
+        <div><h3>재무+가격 · ${bt.period[0].slice(0, 7)}~</h3><table><tbody>${ic(bt.ic_fund)}</tbody></table></div>
+      </div></details>
+    <p class="hint">한계: ${bt.limits.map(esc).join(" · ")}</p>`;
 }
 
 function render(report) {
@@ -210,12 +224,11 @@ function render(report) {
   $("#meta").textContent = `기준 ${d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · 시세 ${src} · 재무 ${report.fiscal_year}년 사업보고서(OpenDART)`;
 
   const c = report.counts;
-  const buys = report.stocks.filter((s) => s.signal === "매수 관심").length;
   const stats = [
     [c.universe.toLocaleString(), `보통주 · 시총 ${won(report.filters.min_market_cap)} 이상`],
     [c.passed.toLocaleString(), "흑자·유동성 조건 통과"],
-    [c.candidates ?? dash, "기술적 분석 후보"],
-    [buys, `상위 ${report.stocks.length}개 중 매수 관심`],
+    [(c.priced ?? c.candidates ?? dash).toLocaleString(), "점수 계산 종목"],
+    [(report.portfolio || []).length, "보유(매수 관심) 종목"],
   ];
   $("#summary").innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
 
@@ -261,6 +274,7 @@ async function init() {
     const sel = $("#run");
     sel.innerHTML = runs.slice().reverse().map((id) => `<option value="${esc(id)}">${runLabel(id)}</option>`).join("");
     sel.addEventListener("change", () => load(sel.value).catch(showError));
+    renderBacktest();
     await load(runs.length ? runs[runs.length - 1] : null);
   } catch (e) {
     showError(e);
