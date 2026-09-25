@@ -17,6 +17,7 @@ import android.widget.Toast
  */
 class QuickMemoActivity : Activity() {
     private lateinit var input: EditText
+    private lateinit var dueChooser: DueChooser
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,6 +32,7 @@ class QuickMemoActivity : Activity() {
         setFinishOnTouchOutside(true)
 
         input = findViewById(R.id.quick_input)
+        dueChooser = DueChooser(this)
         input.setOnEditorActionListener { _, actionId, event ->
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
             if (actionId == EditorInfo.IME_ACTION_DONE || enter) {
@@ -46,7 +48,7 @@ class QuickMemoActivity : Activity() {
     }
 
     private fun save() {
-        if (MemoStore.add(this, input.text.toString())) {
+        if (MemoStore.add(this, input.text.toString(), dueChooser.due)) {
             MemoNotifier.refresh(this)
             Toast.makeText(this, R.string.saved, Toast.LENGTH_SHORT).show()
             finish()

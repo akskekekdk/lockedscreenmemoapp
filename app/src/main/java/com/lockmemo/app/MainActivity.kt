@@ -26,6 +26,7 @@ import java.util.Locale
 class MainActivity : Activity() {
     private lateinit var input: EditText
     private lateinit var emptyView: TextView
+    private lateinit var dueChooser: DueChooser
     private val adapter = MemoAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,9 +35,11 @@ class MainActivity : Activity() {
 
         input = findViewById(R.id.memo_input)
         emptyView = findViewById(R.id.empty_view)
+        dueChooser = DueChooser(this)
         val list = findViewById<ListView>(R.id.memo_list)
         list.adapter = adapter
         list.emptyView = emptyView
+        list.setOnItemClickListener { _, _, position, _ -> editDue(adapter.getItem(position)) }
         list.setOnItemLongClickListener { _, _, position, _ ->
             confirmDelete(adapter.getItem(position))
             true
@@ -108,11 +111,30 @@ class MainActivity : Activity() {
     }
 
     private fun addMemo() {
-        if (MemoStore.add(this, input.text.toString())) {
+        if (MemoStore.add(this, input.text.toString(), dueChooser.due)) {
             input.text.clear()
+            dueChooser.due = null
             reload()
             MemoNotifier.refresh(this)
         }
+    }
+
+    private fun editDue(memo: Memo) {
+        val apply = { due: Long? ->
+            MemoStore.setDue(this, memo, due)
+            reload()
+            MemoNotifier.refresh(this)
+        }
+        if (memo.due == null) {
+            DueFormat.pick(this, null) { apply(it) }
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(memo.text)
+            .setItems(arrayOf(getString(R.string.change_due), getString(R.string.remove_due))) { _, which ->
+                if (which == 0) DueFormat.pick(this, memo.due) { apply(it) } else apply(null)
+            }
+            .show()
     }
 
     private fun confirmDelete(memo: Memo) {
@@ -128,7 +150,7 @@ class MainActivity : Activity() {
     }
 
     private fun reload() {
-        adapter.memos = MemoStore.all(this)
+        adapter.memos = MemoStore.sorted(this)
         adapter.notifyDataSetChanged()
     }
 
@@ -144,7 +166,14 @@ class MainActivity : Activity() {
             val view = convertView ?: layoutInflater.inflate(R.layout.item_memo, parent, false)
             val memo = memos[position]
             view.findViewById<TextView>(R.id.memo_text).text = memo.text
-            view.findViewById<TextView>(R.id.memo_time).text = timeFormat.format(Date(memo.time))
+            val created = getString(R.string.created_at, timeFormat.format(Date(memo.time)))
+            val dueView = view.findViewById<TextView>(R.id.memo_due)
+            dueView.visibility = if (memo.due == null) View.GONE else View.VISIBLE
+            if (memo.due != null) {
+                dueView.text = getString(R.string.due_chip, DueFormat.format(this@MainActivity, memo.due))
+                dueView.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
+            }
+            view.findViewById<TextView>(R.id.memo_time).text = created
             return view
         }
     }

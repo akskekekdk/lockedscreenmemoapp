@@ -1,6 +1,7 @@
 package com.lockmemo.app
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -12,9 +13,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 잠금화면에 항상 떠 있는 메모 알림.
@@ -73,7 +71,10 @@ object MemoNotifier {
 
     /** 설정에 따라 알림을 띄우거나 내린다. 메모가 바뀔 때마다 호출. */
     fun refresh(context: Context) {
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        val refreshIntent = actionIntent(context, MemoActionReceiver.ACTION_REPOST, 4)
         if (!MemoStore.isLockScreenEnabled(context)) {
+            alarms.cancel(refreshIntent)
             NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
             return
         }
@@ -81,21 +82,29 @@ object MemoNotifier {
         ensureChannel(context)
         @Suppress("MissingPermission")
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, build(context))
+
+        // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.
+        // 정확할 필요는 없어서 정확한 알람 권한 없이 쓸 수 있는 방식을 쓴다.
+        val now = System.currentTimeMillis()
+        val nextDue = MemoStore.all(context).mapNotNull { it.due }.filter { it > now }.minOrNull()
+        val next = minOf(nextDue ?: Long.MAX_VALUE, DueFormat.nextMidnight(now))
+        alarms.setAndAllowWhileIdle(AlarmManager.RTC, next, refreshIntent)
     }
 
     private fun build(context: Context): android.app.Notification {
-        val memos = MemoStore.all(context)
-        val timeFormat = SimpleDateFormat("M/d HH:mm", Locale.getDefault())
+        val now = System.currentTimeMillis()
+        val memos = MemoStore.sorted(context, now)
 
         val style = NotificationCompat.InboxStyle()
-        memos.take(PREVIEW_LINES).forEach { style.addLine("${timeFormat.format(Date(it.time))}  ${it.text}") }
+        memos.take(PREVIEW_LINES).forEach { style.addLine(DueFormat.line(context, it, now)) }
         if (memos.size > PREVIEW_LINES) {
             style.setSummaryText(context.getString(R.string.more_memos, memos.size - PREVIEW_LINES))
         }
 
         val title = if (memos.isEmpty()) context.getString(R.string.empty_title)
         else context.getString(R.string.memo_count, memos.size)
-        val summary = memos.firstOrNull()?.text ?: context.getString(R.string.empty_hint)
+        val summary = memos.firstOrNull()?.let { DueFormat.line(context, it, now) }
+            ?: context.getString(R.string.empty_hint)
 
         val remoteInput = RemoteInput.Builder(KEY_TEXT)
             .setLabel(context.getString(R.string.input_hint))
