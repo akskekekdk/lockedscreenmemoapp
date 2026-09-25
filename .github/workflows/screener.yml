@@ -1,0 +1,63 @@
+name: 주식 스크리너
+
+on:
+  schedule:
+    # 평일 KST 09:50 (장중), 15:50 (장 마감 후). cron은 UTC 기준이다.
+    - cron: "50 0 * * 1-5"
+    - cron: "50 6 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "휴장일이어도 실행"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screener
+  cancel-in-progress: false
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # 이전 결과(순위 변동 비교·히스토리)를 이어가기 위해 gh-pages를 public/에 받는다.
+      - name: 이전 결과 가져오기
+        run: |
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null; then
+            git fetch --depth=1 origin gh-pages
+            git worktree add public origin/gh-pages
+          else
+            mkdir -p public
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt pytest
+
+      - run: python -m pytest -q
+
+      - name: 스크리너 실행
+        id: screen
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python -m screener.main --out public ${{ inputs.force && '--force' || '' }}
+
+      - name: gh-pages에 게시
+        if: steps.screen.outputs.updated == 'true'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: public
+          keep_files: true
+          exclude_assets: ".git,.github"
+          commit_message: "스크리너 결과 업데이트"
