@@ -90,7 +90,7 @@ object MemoNotifier {
         val rows = if (shown.isEmpty()) listOf(null) else shown
         rows.forEachIndexed { index, memo ->
             @Suppress("MissingPermission")
-            manager.notify(ROW_IDS[index], buildRow(context, memo, index, memos.size - shown.size, now))
+            manager.notify(ROW_IDS[index], buildRow(context, memo, index, now))
         }
         ROW_IDS.drop(rows.size).forEach { manager.cancel(it) }
 
@@ -106,7 +106,7 @@ object MemoNotifier {
      * 메모마다 따로 띄워야 여러 개가 한 줄씩 모두 보인다.
      * 입력 버튼은 맨 위(index 0) 알림에만 단다. [memo]가 null이면 빈 안내 알림.
      */
-    private fun buildRow(context: Context, memo: Memo?, index: Int, hidden: Int, now: Long): android.app.Notification {
+    private fun buildRow(context: Context, memo: Memo?, index: Int, now: Long): android.app.Notification {
         val openQuickMemo = PendingIntent.getActivity(
             context, 2,
             Intent(context, QuickMemoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -115,7 +115,8 @@ object MemoNotifier {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_memo)
-            .setContentTitle(memo?.let { DueFormat.line(context, it, now) } ?: context.getString(R.string.empty_title))
+            // 제목 없이 메모 내용만 한 줄로 보이도록 제목 자리에 내용을 넣는다
+            .setContentTitle(memo?.let { DueFormat.line(context, it, now) } ?: context.getString(R.string.empty_hint))
             .setContentIntent(openQuickMemo)
             .setOngoing(true)
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
@@ -128,9 +129,7 @@ object MemoNotifier {
             .setWhen(now - index)
             .setShowWhen(false)
 
-        if (memo == null) builder.setContentText(context.getString(R.string.empty_hint))
         if (index == 0) {
-            if (hidden > 0) builder.setSubText(context.getString(R.string.more_memos, hidden))
             val remoteInput = RemoteInput.Builder(KEY_TEXT)
                 .setLabel(context.getString(R.string.input_hint))
                 .build()
