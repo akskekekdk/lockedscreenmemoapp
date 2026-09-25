@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 알림창 펼친 모양: 종목 3줄만 -->
+<!-- 알림창 펼친 모양: 종목 줄들(코드에서 추가) + 마지막 줄에 갱신 시각 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
-    <TextView android:id="@+id/line1" style="@style/NotifLine" />
-    <TextView android:id="@+id/line2" style="@style/NotifLine" />
-    <TextView android:id="@+id/line3" style="@style/NotifLine" />
+    <LinearLayout
+        android:id="@+id/lines"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+    <TextView
+        android:id="@+id/time"
+        style="@style/NotifLine"
+        android:paddingTop="4dp"
+        android:alpha="0.7"
+        android:textSize="12sp" />
 </LinearLayout>

@@ -16,7 +16,8 @@ import java.util.List;
 /** 최신 분석 결과의 상위 3종목 + 네이버 실시간 시세. 마지막 값은 SharedPreferences에 보관한다. */
 final class TopStocks {
 
-    static final int COUNT = 3;
+    static final int COUNT = 3;          // 매수 관심이 없을 때 보여줄 상위 종목 수, 위젯 줄 수
+    static final int MAX_BUY = 10;       // 알림창에 보여줄 매수 관심 종목 최대 수
     private static final String LATEST_URL = BuildConfig.APP_URL + "data/latest.json";
     private static final String REALTIME_URL = "https://polling.finance.naver.com/api/realtime/domestic/stock/";
     private static final String PREFS = "top_stocks";
@@ -31,6 +32,8 @@ final class TopStocks {
     String analyzedAt = "";   // 분석 시각 (예: 09.29 오전)
     String pricedAt = "";     // 시세 시각 (예: 10:30)
     String regime = "";
+    String updatedAt = "";    // 갱신 시각 (예: 09.26(토) 01:54)
+    boolean buyList;          // true면 items가 매수 관심 목록, false면 상위 종목
 
     static final String SORT_SCORE = "score";
     static final String SORT_BUY = "buy";
@@ -64,9 +67,17 @@ final class TopStocks {
             // 안정 정렬: 같은 신호 안에서는 종합 점수순 유지
             stocks.sort((a, b) -> Integer.compare(signalRank(a.optString("signal")), signalRank(b.optString("signal"))));
         }
+        // 매수 관심 종목을 모두(최대 MAX_BUY) 보여주고, 하나도 없으면 상위 COUNT개를 보여준다.
+        List<JSONObject> picked = new ArrayList<>();
+        for (JSONObject s : stocks) {
+            if ("매수 관심".equals(s.optString("signal")) && picked.size() < MAX_BUY) picked.add(s);
+        }
+        t.buyList = !picked.isEmpty();
+        if (!t.buyList) picked = stocks.subList(0, Math.min(COUNT, stocks.size()));
+        t.updatedAt = new java.text.SimpleDateFormat("MM.dd(E) HH:mm", java.util.Locale.KOREA).format(new java.util.Date());
+
         StringBuilder codes = new StringBuilder();
-        for (int i = 0; i < Math.min(COUNT, stocks.size()); i++) {
-            JSONObject s = stocks.get(i);
+        for (JSONObject s : picked) {
             Item it = new Item();
             it.code = s.getString("code");
             it.name = s.getString("name");
@@ -116,7 +127,8 @@ final class TopStocks {
     void save(Context c) {
         try {
             JSONObject o = new JSONObject();
-            o.put("analyzedAt", analyzedAt).put("pricedAt", pricedAt).put("regime", regime);
+            o.put("analyzedAt", analyzedAt).put("pricedAt", pricedAt).put("regime", regime)
+                    .put("updatedAt", updatedAt).put("buyList", buyList);
             JSONArray arr = new JSONArray();
             for (Item it : items) {
                 arr.put(new JSONObject().put("code", it.code).put("name", it.name).put("signal", it.signal)
@@ -137,6 +149,8 @@ final class TopStocks {
             TopStocks t = new TopStocks();
             t.analyzedAt = o.optString("analyzedAt");
             t.pricedAt = o.optString("pricedAt");
+            t.updatedAt = o.optString("updatedAt");
+            t.buyList = o.optBoolean("buyList");
             t.regime = o.optString("regime");
             JSONArray arr = o.getJSONArray("items");
             for (int i = 0; i < arr.length(); i++) {

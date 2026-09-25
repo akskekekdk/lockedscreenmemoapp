@@ -10,7 +10,6 @@ import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
-import android.view.View;
 import android.widget.RemoteViews;
 
 import java.util.Locale;
@@ -50,20 +49,22 @@ final class LockScreenNotifier {
         ensureChannel(c);
         if (!nm.areNotificationsEnabled()) return false;
 
-        // 제목·요약 줄 없이 종목 3줄만 보여준다(맨 위 앱 이름·아이콘은 시스템이 붙인다).
-        int[] lines = {R.id.line1, R.id.line2, R.id.line3};
+        // 제목·요약 줄 없이 종목 줄만, 마지막 줄에 갱신 시각(맨 위 앱 이름·아이콘은 시스템이 붙인다).
         RemoteViews big = new RemoteViews(c.getPackageName(), R.layout.notif_top3);
+        big.removeAllViews(R.id.lines);
         SpannableStringBuilder summary = new SpannableStringBuilder();
-        for (int i = 0; i < lines.length; i++) {
-            if (i < t.items.size()) {
-                TopStocks.Item it = t.items.get(i);
-                big.setTextViewText(lines[i], line(i + 1, it));
-                if (i > 0) summary.append("   ");
-                summary.append(String.valueOf(i + 1)).append(". ").append(it.name).append(' ').append(change(it));
-            } else {
-                big.setViewVisibility(lines[i], View.GONE);
-            }
+        if (t.buyList) summary.append("매수 관심 ").append(String.valueOf(t.items.size())).append("종목  ");
+        for (int i = 0; i < t.items.size(); i++) {
+            TopStocks.Item it = t.items.get(i);
+            RemoteViews row = new RemoteViews(c.getPackageName(), R.layout.notif_line);
+            row.setTextViewText(R.id.line, line(i + 1, it, !t.buyList));
+            big.addView(R.id.lines, row);
+            if (i > 0) summary.append("  ");
+            summary.append(it.name).append(' ').append(change(it));
         }
+        String time = t.updatedAt.isEmpty() ? "" : t.updatedAt + " 기준";
+        if (!t.buyList) time = "매수 관심 종목 없음 · 종합 상위 " + t.items.size() + "종목" + (time.isEmpty() ? "" : " · " + time);
+        big.setTextViewText(R.id.time, time);
         RemoteViews small = new RemoteViews(c.getPackageName(), R.layout.notif_top3_small);
         small.setTextViewText(R.id.summary, summary);
 
@@ -86,12 +87,12 @@ final class LockScreenNotifier {
         return true;
     }
 
-    /** "1. 슈프리마  55,400원 +6.95%  [매수 관심]" — 등락률만 빨강/파랑 */
-    private static CharSequence line(int rank, TopStocks.Item it) {
+    /** "1. 슈프리마  55,400원 +6.95%" (+ 상위 종목 모드면 "[관망]" 같은 신호) — 등락률만 빨강/파랑 */
+    private static CharSequence line(int rank, TopStocks.Item it, boolean withSignal) {
         SpannableStringBuilder b = new SpannableStringBuilder();
         b.append(String.format(Locale.KOREA, "%d. %s  %,.0f원 ", rank, it.name, it.price));
         b.append(change(it));
-        if (!it.signal.isEmpty()) b.append("  [").append(it.signal).append(']');
+        if (withSignal && !it.signal.isEmpty()) b.append("  [").append(it.signal).append(']');
         return b;
     }
 
