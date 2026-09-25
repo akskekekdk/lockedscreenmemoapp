@@ -32,14 +32,14 @@ class LockScreenTest {
     }
 
     @Test
-    fun threeMemosMakeThreeSeparateOneLineNotifications() {
+    fun allMemosShareOneNotificationLine() {
         MemoNotifier.refresh(context)
         val posted = shadowOf(manager).allNotifications
-        assertEquals(3, posted.size)
-        val titles = posted.map { it.extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString() }
-        titles.forEach { println("알림: $it") }
-        assertEquals(setOf("memo_row_0", "memo_row_1", "memo_row_2"), posted.map { it.group }.toSet())
-        posted.forEach { assertEquals(null, it.extras.getCharSequence(NotificationCompat.EXTRA_TEXT)) }
+        assertEquals(1, posted.size)
+        val title = posted.single().extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString()
+        println("알림: $title")
+        assertEquals(3, title.split("  |  ").size)
+        assertEquals(null, posted.single().extras.getCharSequence(NotificationCompat.EXTRA_TEXT))
     }
 
     @Test
