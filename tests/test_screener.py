@@ -2,12 +2,13 @@ import json
 import math
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from screener import main as app
 from screener import scoring
-from screener.dart import fcf_from_statement, fundamentals_from_rows, latest_fiscal_year, parse_amount
+from screener.dart import cash_flow_from_statement, fundamentals_from_rows, latest_fiscal_year, parse_amount
 
 
 def dart_row(code, account, cur, prev, prev2="", fs_div="CFS", year="2025"):
@@ -53,13 +54,13 @@ def test_fundamentals_falls_back_to_separate():
     assert f.iloc[0]["fs_div"] == "OFS"
 
 
-def test_fcf_from_statement():
+def test_cash_flow_from_statement():
     rows = [
         {"sj_div": "CF", "account_id": "ifrs-full_CashFlowsFromUsedInOperatingActivities", "account_nm": "영업활동현금흐름", "thstrm_amount": "1,000"},
         {"sj_div": "CF", "account_id": "-표준계정코드 미사용-", "account_nm": "유형자산의 취득", "thstrm_amount": "(300)"},
     ]
-    assert fcf_from_statement(rows) == 700
-    assert math.isnan(fcf_from_statement([]))
+    assert cash_flow_from_statement(rows) == (1000, 700)
+    assert math.isnan(cash_flow_from_statement([])[0])
 
 
 def test_cagr_cases():
@@ -101,46 +102,88 @@ def test_scoring_ranks_better_company_first():
     ranked = scoring.preliminary_score(passed.set_index("code", drop=False))
     assert list(ranked.index) == ["A00000", "B00000", "C00000"]
 
-    fcf = pd.Series({"A00000": 5e10, "B00000": -1e10, "C00000": 1e10})
-    final = scoring.final_score(ranked, fcf)
+    cash = pd.DataFrame({"ocf": [2e11, 1e10, 3e10], "fcf": [5e10, -1e10, 1e10]}, index=["A00000", "B00000", "C00000"])
+    final = scoring.final_score(ranked, cash)
     assert final.index[0] == "A00000"
     assert final.loc["B00000", "s_fcf"] == 0
     assert "FCF 적자" in final.loc["B00000", "flags"]
     assert "고부채" in final.loc["C00000", "flags"]
+    assert "이익의 질 낮음" in final.loc["B00000", "flags"]  # 영업현금흐름 < 순이익
     assert final["score"].between(0, 100).all()
 
 
-def test_build_report_end_to_end(tmp_path, monkeypatch):
-    market = pd.DataFrame({
-        "code": ["005930", "000660", "005935", "035720"],
-        "name": ["삼성전자", "SK하이닉스", "삼성전자우", "카카오"],
-        "market": ["KOSPI"] * 4, "price": [1.0] * 4, "change_pct": [1.0, -2.0, 0.0, 0.5],
-        "trading_value": [1e10] * 4, "market_cap": [4e14, 1e14, 5e13, 2e13], "trading": [True] * 4,
-        "traded_at": ["2026-09-25T15:30:00+09:00"] * 4,
+def trending_daily(n=300, start=100.0, step=0.004, seed=0):
+    """완만한 우상향 + 잡음 일봉."""
+    rng = np.random.default_rng(seed)
+    close = start * np.cumprod(1 + step + rng.normal(0, 0.01, n))
+    return pd.DataFrame({
+        "date": pd.date_range("2025-06-01", periods=n).strftime("%Y%m%d"),
+        "open": close * 0.995, "high": close * 1.01, "low": close * 0.99, "close": close,
+        "volume": rng.integers(1_000, 2_000, n).astype(float),
     })
 
-    class FakeDart:
-        def corp_codes(self):
-            return {"005930": "00126380", "000660": "00164779", "035720": "00258801"}
 
-        def multi_accounts(self, corp_codes, year):
-            if year != 2025:
-                return []
-            rows = company("005930", (300, 280, 250), (30, 25, 20), (25, 20, 18), (100, 90), (400, 380))
-            rows += company("000660", (60, 40, 30), (20, 5, -3), (15, 3, -4), (40, 50), (60, 50))
-            rows += company("035720", (80, 80, 80), (-1, 2, 3), (-5, 1, 2), (30, 30), (70, 75))
-            for r in rows:  # 단위를 조 단위로 키운다
-                for k in ("thstrm_amount", "frmtrm_amount", "bfefrmtrm_amount"):
-                    if r[k]:
-                        r[k] = f"{parse_amount(r[k]) * 1e12:,.0f}"
-            return rows
+class FakeFeeds:
+    def __init__(self, daily=None):
+        self._daily = daily or {}
 
-        def free_cash_flow(self, corp_code, year):
-            return 1e13
+    def sectors(self):
+        return {"005930": "반도체", "000660": "반도체"}
 
+    def daily(self, code):
+        return self._daily.get(code, trending_daily())
+
+    def index_daily(self, name):
+        return trending_daily(seed=1)
+
+    def flow(self, code):
+        return {"foreign": 1e9, "institution": -1e9, "days": 20}
+
+    def usdkrw(self):
+        return pd.Series([1350.0] * 30)
+
+    def market_flow(self):
+        return {"date": "20260925", "foreign": 100.0, "institution": 0.0, "individual": -100.0}
+
+
+class FakeDart:
+    def __init__(self):
+        self.multi_calls = 0
+
+    def corp_codes(self):
+        return {"005930": "00126380", "000660": "00164779", "035720": "00258801"}
+
+    def multi_accounts(self, corp_codes, year):
+        self.multi_calls += 1
+        if year != 2025:
+            return []
+        rows = company("005930", (300, 280, 250), (30, 25, 20), (25, 20, 18), (100, 90), (400, 380))
+        rows += company("000660", (60, 40, 30), (20, 5, -3), (15, 3, -4), (40, 50), (60, 50))
+        rows += company("035720", (80, 80, 80), (-1, 2, 3), (-5, 1, 2), (30, 30), (70, 75))
+        for r in rows:  # 단위를 조 단위로 키운다
+            for k in ("thstrm_amount", "frmtrm_amount", "bfefrmtrm_amount"):
+                if r[k]:
+                    r[k] = f"{parse_amount(r[k]) * 1e12:,.0f}"
+        return rows
+
+    def cash_flow(self, corp_code, year):
+        return 5e13, 1e13
+
+
+MARKET = pd.DataFrame({
+    "code": ["005930", "000660", "005935", "035720"],
+    "name": ["삼성전자", "SK하이닉스", "삼성전자우", "카카오"],
+    "market": ["KOSPI"] * 4, "price": [1.0] * 4, "change_pct": [1.0, -2.0, 0.0, 0.5],
+    "trading_value": [1e10] * 4, "market_cap": [4e14, 1e14, 5e13, 2e13], "trading": [True] * 4,
+    "traded_at": ["2026-09-25T15:30:00+09:00"] * 4,
+})
+
+
+def test_build_report_end_to_end(tmp_path):
     args = app.parse_args(["--out", str(tmp_path), "--top", "10"])
     now = datetime(2026, 9, 25, 15, 45, tzinfo=app.KST)
-    report = app.build_report(args, now, market, "naver", FakeDart(), {"000660": 1})
+    dart = FakeDart()
+    report = app.build_report(args, now, MARKET, "naver", dart, {"000660": 1}, FakeFeeds(), tmp_path / "cache")
     app.write_site(tmp_path, report, now)
 
     assert report["session"] == "pm"
@@ -148,11 +191,36 @@ def test_build_report_end_to_end(tmp_path, monkeypatch):
     assert set(codes) == {"005930", "000660"}  # 우선주·적자 제외
     hynix = next(s for s in report["stocks"] if s["code"] == "000660")
     assert "흑자전환" in hynix["flags"] and hynix["prev_rank"] == 1
+    assert hynix["sector"] == "반도체"
+    for s in report["stocks"]:
+        assert 0 <= s["tech_score"] <= 100 and s["signal"]
+        assert s["score"] == pytest.approx(0.6 * s["fund_score"] + 0.4 * s["tech_score"], abs=1e-3)
+        assert s["stop"] < s["price"] or s["stop"] < 1e9
+    assert report["regime"]["regime"] == "상승장" and report["regime"]["exposure"] == 1.0
+    assert sum(p["weight"] for p in report["portfolio"]) <= 1.0
 
     saved = json.loads((tmp_path / "data" / "latest.json").read_text(encoding="utf-8"))
     assert saved == json.loads((tmp_path / "data" / "history" / "2026-09-25-pm.json").read_text(encoding="utf-8"))
     assert json.loads((tmp_path / "data" / "index.json").read_text()) == ["2026-09-25-pm"]
-    assert (tmp_path / "index.html").exists()
+    for f in ("index.html", "manifest.json", "icon-192.png"):
+        assert (tmp_path / f).exists()
+
+    # 두 번째 실행은 캐시를 써서 DART 주요계정을 다시 부르지 않는다
+    calls = dart.multi_calls
+    app.build_report(args, now, MARKET, "naver", dart, {}, FakeFeeds(), tmp_path / "cache")
+    assert dart.multi_calls == calls
+
+
+def test_cache_keeps_partial_progress(tmp_path):
+    class FlakyDart(FakeDart):
+        def multi_accounts(self, corp_codes, year):
+            raise RuntimeError("연결 끊김")
+
+    args = app.parse_args([])
+    now = datetime(2026, 9, 25, 15, 45, tzinfo=app.KST)
+    with pytest.raises(RuntimeError):
+        app.build_report(args, now, MARKET, "naver", FlakyDart(), {}, FakeFeeds(), tmp_path)
+    assert (tmp_path / "dart-2025.json").exists()
 
 
 def test_is_market_day():

@@ -84,3 +84,43 @@ td.name small { display: block; color: var(--muted); font-size: 12px; font-weigh
   th, td { padding: 8px 8px; font-size: 13px; }
   td.name { position: sticky; left: 0; background: var(--card); }
 }
+
+/* ---- 조상원 주식: 국면·포트폴리오·탭·신호 ---- */
+h1 { display: flex; align-items: center; gap: 10px; }
+.logo { width: 34px; height: 34px; border-radius: 8px; }
+h2 { font-size: 17px; margin: 28px 0 4px; }
+h3 { font-size: 15px; margin: 16px 0 4px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+.block { display: block; }
+.muted { color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+
+.regime { margin-bottom: 8px; }
+.regime-head { margin-bottom: 10px; }
+.regime-head .big { font-size: 18px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+.regime .stat b { font-size: 18px; }
+.regime .stat > span { display: block; }
+.warn { color: var(--warn); font-style: normal; }
+
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.chip.buy { background: #e3f5e8; color: #17703a; }
+.chip.wait { background: var(--bar-bg); color: var(--muted); }
+.chip.hot { background: var(--warn-bg); color: var(--warn); }
+.chip.broken { background: #fde6e7; color: #b3262d; }
+@media (prefers-color-scheme: dark) {
+  .chip.buy { background: #173a24; color: #7fdc9e; }
+  .chip.broken { background: #45191b; color: #ff9da1; }
+}
+
+.tabs { display: flex; gap: 6px; margin: 8px 0 10px; }
+.tabs button {
+  font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+}
+.tabs button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+tr.total td { font-weight: 600; }
+#summary { margin-top: 16px; }
+@media (max-width: 640px) {
+  .score .track { width: 40px; margin-right: 6px; }
+  .score { min-width: 0; }
+}

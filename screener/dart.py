@@ -15,7 +15,8 @@ log = logging.getLogger(__name__)
 
 BASE_URL = "https://opendart.fss.or.kr/api"
 ANNUAL_REPORT = "11011"  # 사업보고서
-MULTI_BATCH = 100  # fnlttMultiAcnt 한 번에 조회 가능한 회사 수
+MULTI_BATCH = 50  # fnlttMultiAcnt는 최대 100개사까지 받지만, 크면 응답이 느려져 끊긴다
+RETRIES = 4
 
 # 다중회사 주요계정(fnlttMultiAcnt) 계정명 → 내부 필드
 ACCOUNT_NAMES = {
@@ -57,15 +58,31 @@ class DartClient:
         self.session = session or requests.Session()
         self.pause = pause
 
+    def _request(self, endpoint: str, **params) -> requests.Response:
+        """연결 끊김·타임아웃·5xx는 2, 4, 8초 간격으로 재시도한다."""
+        for attempt in range(RETRIES):
+            try:
+                r = self.session.get(
+                    f"{BASE_URL}/{endpoint}",
+                    params={"crtfc_key": self.api_key, **params},
+                    timeout=(10, 60),
+                )
+                if r.status_code < 500:
+                    r.raise_for_status()
+                    time.sleep(self.pause)
+                    return r
+                error: Exception = requests.HTTPError(f"HTTP {r.status_code}")
+            except (requests.ConnectionError, requests.Timeout) as e:
+                error = e
+            if attempt == RETRIES - 1:
+                raise DartError(f"{endpoint} 연결 실패({RETRIES}회 시도): {error}")
+            wait = 2 ** (attempt + 1)
+            log.warning("%s 실패(%s), %d초 후 재시도", endpoint, error, wait)
+            time.sleep(wait)
+        raise AssertionError("unreachable")
+
     def _get_json(self, endpoint: str, **params) -> list[dict]:
-        r = self.session.get(
-            f"{BASE_URL}/{endpoint}",
-            params={"crtfc_key": self.api_key, **params},
-            timeout=30,
-        )
-        r.raise_for_status()
-        data = r.json()
-        time.sleep(self.pause)
+        data = self._request(endpoint, **params).json()
         status = data.get("status")
         if status == "000":
             return data.get("list") or []
@@ -75,8 +92,7 @@ class DartClient:
 
     def corp_codes(self) -> dict[str, str]:
         """상장사 종목코드(6자리) → DART 고유번호(8자리)."""
-        r = self.session.get(f"{BASE_URL}/corpCode.xml", params={"crtfc_key": self.api_key}, timeout=60)
-        r.raise_for_status()
+        r = self._request("corpCode.xml")
         if not r.content.startswith(b"PK"):
             raise DartError(f"corpCode.xml 실패: {r.text[:200]}")
         with zipfile.ZipFile(io.BytesIO(r.content)) as z:
@@ -91,17 +107,16 @@ class DartClient:
     def multi_accounts(self, corp_codes: list[str], year: int) -> list[dict]:
         rows = []
         for i in range(0, len(corp_codes), MULTI_BATCH):
-            batch = corp_codes[i:i + MULTI_BATCH]
             rows += self._get_json(
                 "fnlttMultiAcnt.json",
-                corp_code=",".join(batch),
+                corp_code=",".join(corp_codes[i:i + MULTI_BATCH]),
                 bsns_year=str(year),
                 reprt_code=ANNUAL_REPORT,
             )
         return rows
 
-    def free_cash_flow(self, corp_code: str, year: int) -> float:
-        """영업활동현금흐름 − 유형자산 취득. 연결(CFS)이 없으면 별도(OFS)."""
+    def cash_flow(self, corp_code: str, year: int) -> tuple[float, float]:
+        """(영업활동현금흐름, FCF = 영업활동현금흐름 − 유형자산 취득). 연결(CFS)이 없으면 별도(OFS)."""
         for fs_div in ("CFS", "OFS"):
             rows = self._get_json(
                 "fnlttSinglAcntAll.json",
@@ -110,13 +125,13 @@ class DartClient:
                 reprt_code=ANNUAL_REPORT,
                 fs_div=fs_div,
             )
-            fcf = fcf_from_statement(rows)
-            if not math.isnan(fcf):
-                return fcf
-        return math.nan
+            ocf, fcf = cash_flow_from_statement(rows)
+            if not math.isnan(ocf):
+                return ocf, fcf
+        return math.nan, math.nan
 
 
-def fcf_from_statement(rows: list[dict]) -> float:
+def cash_flow_from_statement(rows: list[dict]) -> tuple[float, float]:
     cf = [r for r in rows if r.get("sj_div") == "CF"]
     ocf = capex = math.nan
     for r in cf:
@@ -126,8 +141,8 @@ def fcf_from_statement(rows: list[dict]) -> float:
         if math.isnan(capex) and (r.get("account_id") in CAPEX_IDS or name in CAPEX_NAMES):
             capex = parse_amount(r.get("thstrm_amount"))
     if math.isnan(ocf):
-        return math.nan
-    return ocf - (0 if math.isnan(capex) else abs(capex))
+        return math.nan, math.nan
+    return ocf, ocf - (0 if math.isnan(capex) else abs(capex))
 
 
 def fundamentals_from_rows(rows: list[dict]) -> pd.DataFrame:

@@ -1,7 +1,7 @@
 """지표 계산, 필터링, 점수화.
 
 각 지표를 걸러진 종목들 안에서 백분위(0~100)로 바꾼 뒤 가중합한다.
-  가격   PER 20 · PBR 10
+  가격   PER 20 · PBR 10  ← 같은 업종 안에서 비교(업종 종목이 5개 미만이면 전체와 비교)
   수익성 ROE 25
   성장   매출 CAGR 10 · 영업이익 CAGR 15
   안정성 부채비율 10 · FCF 수익률 10 (FCF는 1차 상위 후보에만 조회)
@@ -16,6 +16,8 @@ import pandas as pd
 WEIGHTS = {"per": 20, "pbr": 10, "roe": 25, "rev_cagr": 10, "op_cagr": 15, "debt_ratio": 10}
 FCF_WEIGHT = 10
 LOWER_IS_BETTER = {"per", "pbr", "debt_ratio"}
+SECTOR_RELATIVE = {"per", "pbr"}
+MIN_SECTOR_SIZE = 5
 TURNAROUND_GROWTH = 1.0  # 적자→흑자 전환은 성장률 100%로 간주
 
 
@@ -73,19 +75,33 @@ def _percentile(series: pd.Series, lower_is_better: bool) -> pd.Series:
     return (series.rank(pct=True, ascending=not lower_is_better) * 100).fillna(0)
 
 
+def _sector_percentile(df: pd.DataFrame, metric: str) -> pd.Series:
+    """업종 안 백분위. 업종 정보가 없거나 종목 수가 적으면 전체 백분위를 쓴다."""
+    overall = _percentile(df[metric], metric in LOWER_IS_BETTER)
+    if "sector" not in df:
+        return overall
+    size = df.groupby("sector")[metric].transform("count")
+    within = df.groupby("sector")[metric].rank(pct=True, ascending=metric not in LOWER_IS_BETTER) * 100
+    return within.where(df["sector"].notna() & (size >= MIN_SECTOR_SIZE), overall).fillna(0)
+
+
 def preliminary_score(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     for m in WEIGHTS:
-        df[f"s_{m}"] = _percentile(df[m], m in LOWER_IS_BETTER)
+        df[f"s_{m}"] = _sector_percentile(df, m) if m in SECTOR_RELATIVE else _percentile(df[m], m in LOWER_IS_BETTER)
     total = sum(WEIGHTS.values())
     df["prelim_score"] = sum(df[f"s_{m}"] * w for m, w in WEIGHTS.items()) / total
     return df.sort_values("prelim_score", ascending=False)
 
 
-def final_score(candidates: pd.DataFrame, fcf: pd.Series) -> pd.DataFrame:
-    """1차 상위 후보에 FCF 수익률을 더해 최종 점수(0~100)를 낸다. FCF 적자는 0점."""
+def final_score(candidates: pd.DataFrame, cash: pd.DataFrame) -> pd.DataFrame:
+    """1차 상위 후보에 FCF 수익률을 더해 재무 점수(0~100)를 낸다. FCF 적자는 0점.
+
+    cash: 종목코드 인덱스, 열 ocf(영업활동현금흐름)·fcf
+    """
     df = candidates.copy()
-    df["fcf"] = fcf.reindex(df.index)
+    df["ocf"] = cash["ocf"].reindex(df.index)
+    df["fcf"] = cash["fcf"].reindex(df.index)
     df["fcf_yield"] = df["fcf"] / df["market_cap"]
     s_fcf = _percentile(df["fcf_yield"], False)
     df["s_fcf"] = s_fcf.where(df["fcf"] > 0, 0)
@@ -105,6 +121,10 @@ def flags(row) -> list[str]:
         out.append("흑자전환")
     if row["debt_ratio"] > 200:
         out.append("고부채")
+    if row["net_income"] > 1.5 * row["op_income"]:
+        out.append("일회성 이익 의심")  # 영업 외 이익(자산 매각 등)으로 순이익이 부풀었을 수 있다
+    if not _missing(row.get("ocf")) and row["ocf"] < row["net_income"]:
+        out.append("이익의 질 낮음")  # 장부상 이익보다 실제로 들어온 현금이 적다
     return out
 
 

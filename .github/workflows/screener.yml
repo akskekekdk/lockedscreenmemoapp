@@ -1,4 +1,4 @@
-name: 주식 스크리너
+name: 조상원 주식
 
 on:
   schedule:
@@ -58,8 +58,9 @@ jobs:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
         run: python -m screener.main --out public ${{ inputs.force && '--force' || '' }}
 
+      # 실패해도 그때까지 받은 DART 재무 캐시(public/cache)는 올려서 다음 실행이 이어받게 한다.
       - name: gh-pages에 게시
-        if: steps.screen.outputs.updated == 'true'
+        if: always() && (steps.screen.outputs.updated == 'true' || steps.screen.outcome == 'failure')
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
