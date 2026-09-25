@@ -16,16 +16,18 @@ import androidx.core.content.ContextCompat
 
 /**
  * 잠금화면에 항상 떠 있는 메모 알림.
- * - 최근 메모를 한 줄씩 보여주고
+ * - 메모 하나를 알림 하나로 띄워 한 줄씩 보여주고
  * - "한 줄 메모" 버튼으로 잠금을 풀지 않고 바로 입력(인라인 답장)할 수 있다.
  */
 object MemoNotifier {
     // 중요도는 채널을 만든 뒤 바꿀 수 없어서, 바꿀 때마다 새 ID를 쓴다
     const val CHANNEL_ID = "lockscreen_memo_v2"
     private val OLD_CHANNEL_IDS = listOf("lockscreen_memo")
-    const val NOTIFICATION_ID = 1
     const val KEY_TEXT = "memo_text"
-    private const val PREVIEW_LINES = 5
+
+    // 한 앱의 알림이 4개 이상 쌓이면 안드로이드가 자동으로 하나로 묶어 다시 한 줄만 보이게 되므로 3개까지만 띄운다
+    private const val MAX_ROWS = 3
+    private val ROW_IDS = listOf(1, 2, 3)
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -73,66 +75,48 @@ object MemoNotifier {
     fun refresh(context: Context) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         val refreshIntent = actionIntent(context, MemoActionReceiver.ACTION_REPOST, 4)
+        val manager = NotificationManagerCompat.from(context)
         if (!MemoStore.isLockScreenEnabled(context)) {
             alarms.cancel(refreshIntent)
-            NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+            ROW_IDS.forEach { manager.cancel(it) }
             return
         }
         if (!canNotify(context)) return
         ensureChannel(context)
-        @Suppress("MissingPermission")
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, build(context))
+
+        val now = System.currentTimeMillis()
+        val memos = MemoStore.sorted(context, now)
+        val shown = memos.take(MAX_ROWS)
+        val rows = if (shown.isEmpty()) listOf(null) else shown
+        rows.forEachIndexed { index, memo ->
+            @Suppress("MissingPermission")
+            manager.notify(ROW_IDS[index], buildRow(context, memo, index, memos.size - shown.size, now))
+        }
+        ROW_IDS.drop(rows.size).forEach { manager.cancel(it) }
 
         // 메모 시각이 지나거나 날짜가 바뀌면("내일" → "오늘") 표시를 다시 그린다.
         // 정확할 필요는 없어서 정확한 알람 권한 없이 쓸 수 있는 방식을 쓴다.
-        val now = System.currentTimeMillis()
-        val nextDue = MemoStore.all(context).mapNotNull { it.due }.filter { it > now }.minOrNull()
+        val nextDue = memos.mapNotNull { it.due }.filter { it > now }.minOrNull()
         val next = minOf(nextDue ?: Long.MAX_VALUE, DueFormat.nextMidnight(now))
         alarms.setAndAllowWhileIdle(AlarmManager.RTC, next, refreshIntent)
     }
 
-    private fun build(context: Context): android.app.Notification {
-        val now = System.currentTimeMillis()
-        val memos = MemoStore.sorted(context, now)
-
-        val style = NotificationCompat.InboxStyle()
-        memos.take(PREVIEW_LINES).forEach { style.addLine(DueFormat.line(context, it, now)) }
-        if (memos.size > PREVIEW_LINES) {
-            style.setSummaryText(context.getString(R.string.more_memos, memos.size - PREVIEW_LINES))
-        }
-
-        val title = if (memos.isEmpty()) context.getString(R.string.empty_title)
-        else context.getString(R.string.memo_count, memos.size)
-        val summary = memos.firstOrNull()?.let { DueFormat.line(context, it, now) }
-            ?: context.getString(R.string.empty_hint)
-
-        val remoteInput = RemoteInput.Builder(KEY_TEXT)
-            .setLabel(context.getString(R.string.input_hint))
-            .build()
-        val replyAction = NotificationCompat.Action.Builder(
-            R.drawable.ic_memo,
-            context.getString(R.string.action_reply),
-            actionIntent(context, MemoActionReceiver.ACTION_ADD, 1),
-        )
-            .addRemoteInput(remoteInput)
-            .setAllowGeneratedReplies(false)
-            .setAuthenticationRequired(false) // 잠금 해제 없이 입력 허용
-            .build()
-
+    /**
+     * 메모 하나 = 알림 한 줄. 잠금화면에서 알림은 접힌 채로 보이므로
+     * 메모마다 따로 띄워야 여러 개가 한 줄씩 모두 보인다.
+     * 입력 버튼은 맨 위(index 0) 알림에만 단다. [memo]가 null이면 빈 안내 알림.
+     */
+    private fun buildRow(context: Context, memo: Memo?, index: Int, hidden: Int, now: Long): android.app.Notification {
         val openQuickMemo = PendingIntent.getActivity(
             context, 2,
             Intent(context, QuickMemoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        return NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_memo)
-            .setContentTitle(title)
-            .setContentText(summary)
-            .setStyle(style)
+            .setContentTitle(memo?.let { DueFormat.line(context, it, now) } ?: context.getString(R.string.empty_title))
             .setContentIntent(openQuickMemo)
-            .addAction(replyAction)
-            .addAction(R.drawable.ic_memo, context.getString(R.string.action_quick), openQuickMemo)
             .setOngoing(true)
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
             .setDeleteIntent(actionIntent(context, MemoActionReceiver.ACTION_REPOST, 3))
@@ -140,8 +124,29 @@ object MemoNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOnlyAlertOnce(true)
+            // 같은 중요도의 알림은 시각이 최근일수록 위에 오므로, 메모 순서대로 1ms씩 과거로 둔다
+            .setWhen(now - index)
             .setShowWhen(false)
-            .build()
+
+        if (memo == null) builder.setContentText(context.getString(R.string.empty_hint))
+        if (index == 0) {
+            if (hidden > 0) builder.setSubText(context.getString(R.string.more_memos, hidden))
+            val remoteInput = RemoteInput.Builder(KEY_TEXT)
+                .setLabel(context.getString(R.string.input_hint))
+                .build()
+            val replyAction = NotificationCompat.Action.Builder(
+                R.drawable.ic_memo,
+                context.getString(R.string.action_reply),
+                actionIntent(context, MemoActionReceiver.ACTION_ADD, 1),
+            )
+                .addRemoteInput(remoteInput)
+                .setAllowGeneratedReplies(false)
+                .setAuthenticationRequired(false) // 잠금 해제 없이 입력 허용
+                .build()
+            builder.addAction(replyAction)
+                .addAction(R.drawable.ic_memo, context.getString(R.string.action_quick), openQuickMemo)
+        }
+        return builder.build()
     }
 
     private fun actionIntent(context: Context, action: String, requestCode: Int): PendingIntent {
