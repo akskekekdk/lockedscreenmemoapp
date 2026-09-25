@@ -90,6 +90,7 @@ public class MainActivity extends Activity {
             firstResume = false;
         } else {
             webView.reload();
+            UpdateJobService.updateNow(this, null);  // 설정에서 알림을 켜고 돌아왔을 때도 바로 뜨게
         }
     }
 
@@ -100,12 +101,38 @@ public class MainActivity extends Activity {
                     != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
             }
-            LockScreenNotifier.show(this, TopStocks.load(this));
             UpdateJobService.schedule(this);
-            UpdateJobService.runNow(this);
+            refreshNotification(false);
         } catch (Throwable e) {
             android.util.Log.e("JosangwonStock", "background updates", e);
         }
+    }
+
+    /** 지금 바로 TOP3를 받아 알림·위젯을 띄운다. 알림이 꺼져 있으면 설정으로 안내한다. */
+    private void refreshNotification(boolean askIfDisabled) {
+        UpdateJobService.updateNow(this, error -> runOnUiThread(() -> {
+            if (isFinishing()) return;
+            if (!LockScreenNotifier.enabled(this)) {
+                if (askIfDisabled || android.os.Build.VERSION.SDK_INT < 33) askNotificationSettings();
+            } else if (error != null) {
+                android.widget.Toast.makeText(this, error, android.widget.Toast.LENGTH_LONG).show();
+            }
+        }));
+    }
+
+    private void askNotificationSettings() {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("잠금화면 알림이 꺼져 있어요")
+                .setMessage("상위 3종목을 잠금화면에 보려면 '조상원 주식' 알림을 켜 주세요.")
+                .setPositiveButton("설정 열기", (d, w) -> {
+                    try {
+                        startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName()));
+                    } catch (Throwable ignored) {
+                    }
+                })
+                .setNegativeButton("나중에", null)
+                .show();
     }
 
     /** 지난번에 앱이 죽은 원인을 보여준다. 캡처해서 보내면 고칠 수 있다. */
@@ -127,11 +154,7 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        try {
-            UpdateJobService.runNow(this);  // 허용 직후 바로 알림을 띄운다
-        } catch (Throwable e) {
-            android.util.Log.e("JosangwonStock", "runNow", e);
-        }
+        refreshNotification(true);  // 허용 직후 바로 알림을 띄운다(거부했으면 설정 안내)
     }
 
     @Override

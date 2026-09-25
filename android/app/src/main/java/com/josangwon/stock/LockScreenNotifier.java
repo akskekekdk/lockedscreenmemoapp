@@ -6,24 +6,42 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 
 /** 잠금화면에 보이는 고정 알림: 상위 3종목. 소리·진동 없이 조용히 갱신된다. */
 final class LockScreenNotifier {
 
-    private static final String CHANNEL = "top3";
+    // 중요도 '낮음' 채널(top3)은 무음 알림이라 잠금화면에서 숨겨졌다. 채널 중요도는 나중에 못 바꾸므로 새 채널을 쓴다.
+    private static final String OLD_CHANNEL = "top3";
+    private static final String CHANNEL = "top3_lock";
     private static final int ID = 3;
 
-    static void show(Context c, TopStocks t) {
-        if (t == null || t.items.isEmpty()) return;
+    static boolean enabled(Context c) {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
-        if (Build.VERSION.SDK_INT >= 33 && !nm.areNotificationsEnabled()) return;
+        if (!nm.areNotificationsEnabled()) return false;
+        NotificationChannel ch = nm.getNotificationChannel(CHANNEL);
+        return ch == null || ch.getImportance() != NotificationManager.IMPORTANCE_NONE;
+    }
 
-        NotificationChannel ch = new NotificationChannel(CHANNEL, "상위 3종목 (잠금화면)", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("분석 상위 3종목을 잠금화면과 알림창에 계속 보여줍니다.");
+    static void ensureChannel(Context c) {
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        nm.deleteNotificationChannel(OLD_CHANNEL);
+        // 기본 중요도(잠금화면에 표시) + 소리·진동 없음
+        NotificationChannel ch = new NotificationChannel(CHANNEL, "상위 3종목 (잠금화면)", NotificationManager.IMPORTANCE_DEFAULT);
+        ch.setDescription("분석 상위 3종목을 잠금화면과 알림창에 계속 보여줍니다. 소리·진동 없음.");
         ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        ch.setSound(null, null);
+        ch.enableVibration(false);
+        ch.enableLights(false);
         ch.setShowBadge(false);
         nm.createNotificationChannel(ch);
+    }
+
+    /** 알림을 띄웠으면 true. */
+    static boolean show(Context c, TopStocks t) {
+        if (t == null || t.items.isEmpty()) return false;
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        ensureChannel(c);
+        if (!nm.areNotificationsEnabled()) return false;
 
         Notification.InboxStyle style = new Notification.InboxStyle();
         for (int i = 0; i < t.items.size(); i++) {
@@ -46,9 +64,11 @@ final class LockScreenNotifier {
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
+                .setCategory(Notification.CATEGORY_STATUS)
                 .setShowWhen(false)
                 .setContentIntent(open)
                 .build();
         nm.notify(ID, n);
+        return true;
     }
 }

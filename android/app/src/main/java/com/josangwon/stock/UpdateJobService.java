@@ -58,8 +58,32 @@ public class UpdateJobService extends JobService {
         return true;
     }
 
-    static void refreshViews(Context c, TopStocks t) {
-        TopWidgetProvider.render(c, t);
-        LockScreenNotifier.show(c, t);
+    /** 위젯과 알림을 갱신한다. 알림을 띄웠으면 true. */
+    static boolean refreshViews(Context c, TopStocks t) {
+        try {
+            TopWidgetProvider.render(c, t);
+        } catch (Throwable e) {
+            android.util.Log.e("JosangwonStock", "widget render", e);
+        }
+        return LockScreenNotifier.show(c, t);
+    }
+
+    /** 예약 작업을 기다리지 않고 지금 바로 받아서 갱신한다. 메인 스레드에서 불러도 된다. */
+    static void updateNow(Context c, java.util.function.Consumer<String> onDone) {
+        Context app = c.getApplicationContext();
+        new Thread(() -> {
+            String result;
+            try {
+                TopStocks t = TopStocks.fetch();
+                t.save(app);
+                result = refreshViews(app, t) ? null : "알림 권한이 꺼져 있습니다";
+            } catch (Throwable e) {
+                android.util.Log.e("JosangwonStock", "updateNow", e);
+                TopStocks cached = TopStocks.load(app);
+                if (cached != null) refreshViews(app, cached);
+                result = "최신 데이터를 받지 못했습니다: " + e;
+            }
+            if (onDone != null) onDone.accept(result);
+        }).start();
     }
 }
