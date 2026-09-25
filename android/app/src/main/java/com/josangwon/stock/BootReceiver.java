@@ -9,9 +9,13 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent intent) {
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-            LockScreenNotifier.show(c, TopStocks.load(c));
-            UpdateJobService.schedule(c);
-            UpdateJobService.runNow(c);
+            try {
+                LockScreenNotifier.show(c, TopStocks.load(c));
+                UpdateJobService.schedule(c);
+                UpdateJobService.runNow(c);
+            } catch (Throwable e) {
+                android.util.Log.e("JosangwonStock", "boot", e);
+            }
         }
     }
 }

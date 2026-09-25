@@ -41,10 +41,14 @@ public class UpdateJobService extends JobService {
                 TopStocks t = TopStocks.fetch();
                 t.save(this);
                 refreshViews(this, t);
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                android.util.Log.e("JosangwonStock", "update failed", e);
                 retry = params.getJobId() == NOW_ID;
             }
-            jobFinished(params, retry);
+            try {
+                jobFinished(params, retry);
+            } catch (Throwable ignored) {
+            }
         }).start();
         return true;
     }

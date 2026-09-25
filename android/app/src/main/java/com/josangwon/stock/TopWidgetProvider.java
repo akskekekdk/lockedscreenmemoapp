@@ -18,9 +18,13 @@ public class TopWidgetProvider extends AppWidgetProvider {
 
     @Override
     public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
-        render(c, TopStocks.load(c));
-        UpdateJobService.schedule(c);
-        UpdateJobService.runNow(c);
+        try {
+            render(c, TopStocks.load(c));
+            UpdateJobService.schedule(c);
+            UpdateJobService.runNow(c);
+        } catch (Throwable e) {
+            android.util.Log.e("JosangwonStock", "widget update", e);
+        }
     }
 
     static void render(Context c, TopStocks t) {

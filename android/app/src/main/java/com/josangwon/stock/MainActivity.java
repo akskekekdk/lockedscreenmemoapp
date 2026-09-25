@@ -24,7 +24,18 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        webView = new WebView(this);
+        String crash = App.takeCrash(this);
+        try {
+            webView = new WebView(this);
+        } catch (Throwable e) {
+            // 안드로이드 시스템 WebView가 없거나 업데이트 중이면 여기서 실패한다.
+            android.widget.TextView tv = new android.widget.TextView(this);
+            tv.setPadding(40, 200, 40, 40);
+            tv.setText("화면을 여는 데 필요한 'Android System WebView'를 불러오지 못했습니다.\n"
+                    + "Play 스토어에서 Android System WebView와 Chrome을 업데이트한 뒤 다시 열어 주세요.\n\n" + e);
+            setContentView(tv);
+            return;
+        }
         setContentView(webView);
 
         WebSettings s = webView.getSettings();
@@ -40,7 +51,11 @@ public class MainActivity extends Activity {
                     return false;
                 }
                 // 네이버 종목 페이지 등 외부 링크는 브라우저로 연다.
-                startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                } catch (Throwable ignored) {
+                    // 열 수 있는 앱이 없으면 무시
+                }
                 return true;
             }
 
@@ -52,15 +67,12 @@ public class MainActivity extends Activity {
             }
         });
 
-        // 잠금화면 알림 권한(Android 13+)을 요청하고, 위젯·알림 갱신을 시작한다.
-        if (android.os.Build.VERSION.SDK_INT >= 33
-                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
-                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        if (crash != null) {
+            showCrash(crash);
+        } else {
+            // 화면이 뜬 뒤에 알림 권한 요청과 위젯·알림 갱신을 시작한다. 실패해도 화면은 유지.
+            webView.post(this::startBackgroundUpdates);
         }
-        LockScreenNotifier.show(this, TopStocks.load(this));
-        UpdateJobService.schedule(this);
-        UpdateJobService.runNow(this);
 
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
@@ -72,6 +84,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (webView == null) return;
         // 앱으로 돌아올 때마다 최신 분석 결과를 다시 불러온다(처음 켤 때는 이미 불러오는 중).
         if (firstResume) {
             firstResume = false;
@@ -80,21 +93,56 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void startBackgroundUpdates() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 33
+                    && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+            }
+            LockScreenNotifier.show(this, TopStocks.load(this));
+            UpdateJobService.schedule(this);
+            UpdateJobService.runNow(this);
+        } catch (Throwable e) {
+            android.util.Log.e("JosangwonStock", "background updates", e);
+        }
+    }
+
+    /** 지난번에 앱이 죽은 원인을 보여준다. 캡처해서 보내면 고칠 수 있다. */
+    private void showCrash(String text) {
+        android.widget.TextView tv = new android.widget.TextView(this);
+        tv.setText(text);
+        tv.setTextIsSelectable(true);
+        tv.setTextSize(11);
+        tv.setPadding(40, 20, 40, 20);
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(tv);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("지난번 오류 기록 (캡처해서 보내주세요)")
+                .setView(sv)
+                .setPositiveButton("닫기", null)
+                .show();
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        UpdateJobService.runNow(this);  // 허용 직후 바로 알림을 띄운다
+        try {
+            UpdateJobService.runNow(this);  // 허용 직후 바로 알림을 띄운다
+        } catch (Throwable e) {
+            android.util.Log.e("JosangwonStock", "runNow", e);
+        }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        webView.saveState(outState);
+        if (webView != null) webView.saveState(outState);
     }
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
