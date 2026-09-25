@@ -8,13 +8,15 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/app_label_hidden"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- 홈 화면 이름은 여기(activity label)로 정해지고, 알림 맨 위 앱 이름은 위의 application label 이 쓰인다 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:label="@string/app_name"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

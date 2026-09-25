@@ -53,6 +53,14 @@ class LockScreenTest {
     }
 
     @Test
+    fun notificationHeaderAppNameIsInvisibleButLauncherNameStays() {
+        val pm = context.packageManager
+        assertEquals("\u200B", pm.getApplicationLabel(context.applicationInfo).toString())
+        val launcher = pm.getActivityInfo(android.content.ComponentName(context, MainActivity::class.java), 0)
+        assertEquals("조상원 메모", launcher.loadLabel(pm).toString())
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)
