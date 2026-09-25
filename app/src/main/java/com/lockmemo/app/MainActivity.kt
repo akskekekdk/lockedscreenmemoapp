@@ -20,7 +20,6 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -35,7 +34,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var input: EditText
-    private lateinit var emptyView: TextView
+    private lateinit var emptyView: View
     private lateinit var dueChooser: DueChooser
     private val adapter = MemoAdapter()
 
@@ -49,9 +48,6 @@ class MainActivity : Activity() {
         val list = findViewById<RecyclerView>(R.id.memo_list)
         list.layoutManager = LinearLayoutManager(this)
         list.adapter = adapter
-        list.addItemDecoration(DividerItemDecoration(this, DividerItemDecoration.VERTICAL).apply {
-            setDrawable(getDrawable(R.drawable.divider)!!)
-        })
         reorder.attachToRecyclerView(list)
 
         input.setOnEditorActionListener { _, actionId, event ->
@@ -64,6 +60,11 @@ class MainActivity : Activity() {
             }
         }
         findViewById<View>(R.id.add_button).setOnClickListener { addMemo() }
+
+        val settingsCard = findViewById<View>(R.id.settings_card)
+        findViewById<View>(R.id.settings_button).setOnClickListener {
+            settingsCard.visibility = if (settingsCard.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
 
         val toggle = findViewById<Switch>(R.id.lockscreen_switch)
         toggle.isChecked = MemoStore.isLockScreenEnabled(this)
@@ -230,6 +231,13 @@ class MainActivity : Activity() {
         adapter.memos = MemoStore.all(this).toMutableList()
         adapter.notifyDataSetChanged()
         emptyView.visibility = if (adapter.memos.isEmpty()) View.VISIBLE else View.GONE
+        updateHeader()
+    }
+
+    /** "9월 25일 목요일 · 메모 3개" */
+    private fun updateHeader() {
+        val today = SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN).format(Date())
+        findViewById<TextView>(R.id.header_date).text = getString(R.string.header_summary, today, adapter.memos.size)
     }
 
     /** 꾹 눌러서 위아래로 끌면 순서가 바뀐다. 손을 떼면 저장하고 잠금화면도 갱신. */
@@ -250,15 +258,21 @@ class MainActivity : Activity() {
         override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
             super.onSelectedChanged(viewHolder, actionState)
             if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
-                viewHolder?.itemView?.alpha = 0.85f
-                viewHolder?.itemView?.elevation = 12f
+                (viewHolder as? MemoHolder)?.card?.apply {
+                    elevation = 10f * resources.displayMetrics.density
+                    scaleX = 1.02f
+                    scaleY = 1.02f
+                }
             }
         }
 
         override fun clearView(rv: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
             super.clearView(rv, viewHolder)
-            viewHolder.itemView.alpha = 1f
-            viewHolder.itemView.elevation = 0f
+            (viewHolder as? MemoHolder)?.card?.apply {
+                elevation = 0f
+                scaleX = 1f
+                scaleY = 1f
+            }
             val dragTo = viewHolder.bindingAdapterPosition
             if (dragFrom != RecyclerView.NO_POSITION && dragTo != RecyclerView.NO_POSITION && dragFrom != dragTo) {
                 MemoStore.move(this@MainActivity, dragFrom, dragTo)
@@ -271,6 +285,7 @@ class MainActivity : Activity() {
     })
 
     private class MemoHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val card: View = view.findViewById(R.id.memo_card)
         val text: TextView = view.findViewById(R.id.memo_text)
         val due: TextView = view.findViewById(R.id.memo_due)
         val time: TextView = view.findViewById(R.id.memo_time)
@@ -295,7 +310,7 @@ class MainActivity : Activity() {
                 holder.due.setTextColor(getColor(if (memo.due < System.currentTimeMillis()) R.color.text_secondary else R.color.accent))
             }
             holder.time.text = getString(R.string.created_at, timeFormat.format(Date(memo.time)))
-            holder.itemView.setOnClickListener {
+            holder.card.setOnClickListener {
                 memos.getOrNull(holder.bindingAdapterPosition)?.let { editDue(it) }
             }
             holder.delete.setOnClickListener {

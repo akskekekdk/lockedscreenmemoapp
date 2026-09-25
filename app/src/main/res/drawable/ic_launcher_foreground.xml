@@ -3,11 +3,33 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:translateX="30" android:translateY="30">
+    <!-- 살짝 기울어진 메모지 한 장 + 테이프 -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-6">
+        <!-- 그림자 -->
         <path
-            android:fillColor="#FF121216"
-            android:pathData="M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z"
-            android:scaleX="2"
-            android:scaleY="2" />
+            android:fillColor="#33000000"
+            android:pathData="M37,33h27l12,12v29a3,3 0,0 1,-3 3H37a3,3 0,0 1,-3 -3V36a3,3 0,0 1,3 -3z" />
+        <!-- 종이 -->
+        <path
+            android:fillColor="#FFFFFDF8"
+            android:pathData="M35,31h27l12,12v29a3,3 0,0 1,-3 3H35a3,3 0,0 1,-3 -3V34a3,3 0,0 1,3 -3z" />
+        <!-- 접힌 모서리 -->
+        <path
+            android:fillColor="#FFF6D9BE"
+            android:pathData="M62,31v9a3,3 0,0 0,3 3h9z" />
+        <!-- 줄 -->
+        <path
+            android:fillColor="#FFEE7442"
+            android:pathData="M39,49h26a1.5,1.5 0,0 1,0 3H39a1.5,1.5 0,0 1,0 -3z" />
+        <path
+            android:fillColor="#FFF4B28A"
+            android:pathData="M39,57h26a1.5,1.5 0,0 1,0 3H39a1.5,1.5 0,0 1,0 -3zM39,65h16a1.5,1.5 0,0 1,0 3H39a1.5,1.5 0,0 1,0 -3z" />
+        <!-- 테이프 -->
+        <path
+            android:fillColor="#B3FFE3C4"
+            android:pathData="M45,26h14v9H45z" />
     </group>
 </vector>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">잠금화면 한줄메모</string>
+    <string name="app_name">조상원 메모</string>
     <string name="tile_label">한 줄 메모</string>
     <string name="channel_name">잠금화면 메모</string>
     <string name="channel_desc">잠금화면에 한 줄 메모를 표시하고 바로 입력할 수 있게 합니다.</string>
@@ -13,10 +13,10 @@
     <string name="empty_error">내용을 입력하세요</string>
     <string name="add">추가</string>
     <string name="lockscreen_toggle">잠금화면에 메모 표시</string>
-    <string name="list_empty">아직 메모가 없어요.\n잠금화면 알림의 \'한 줄 메모\' 버튼으로 바로 적어보세요.</string>
+    <string name="list_empty">아직 메모가 없어요\n위에 한 줄 적어보세요</string>
     <string name="delete">삭제</string>
     <string name="delete_confirm">\"%1$s\" 메모를 삭제할까요?</string>
-    <string name="list_help">눌러서 날짜·시간 변경 · 꾹 눌러 끌어서 순서 변경</string>
+    <string name="list_help">눌러서 날짜·시간 변경  ·  꾹 눌러 끌어서 순서 변경</string>
     <string name="problem_notifications_off">알림이 꺼져 있어서 잠금화면에 메모가 표시되지 않아요.</string>
     <string name="problem_channel_off">\'잠금화면 메모\' 알림 종류가 꺼져 있어요.</string>
     <string name="problem_channel_silent">\'잠금화면 메모\' 알림이 무음으로 설정되어 있어요. 무음 알림은 잠금화면에서 숨겨져요. \'기본\'으로 바꿔주세요.</string>
@@ -44,4 +44,8 @@
     <string name="background_pick">사진 고르기</string>
     <string name="background_default">기본 배경(어두운 색)</string>
     <string name="background_failed">사진을 불러오지 못했어요</string>
+    <string name="owner_name">조상원</string>
+    <string name="memo_title">메모</string>
+    <string name="settings">설정</string>
+    <string name="header_summary">%1$s · 메모 %2$d개</string>
 </resources>

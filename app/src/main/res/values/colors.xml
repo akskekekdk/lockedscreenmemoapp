@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="accent">#FFB300</color>
+    <!-- 따뜻한 종이 메모 느낌 (라이트) -->
+    <color name="background">#FFF7F3EC</color>
+    <color name="card">#FFFFFFFF</color>
+    <color name="text_primary">#FF2B2622</color>
+    <color name="text_secondary">#FF8C837A</color>
+    <color name="accent">#FFE8833A</color>
+    <color name="accent_soft">#FFFCEBDC</color>
+    <color name="on_accent">#FFFFFFFF</color>
+    <color name="divider">#142B2622</color>
+    <color name="outline">#1F2B2622</color>
     <color name="scrim">#99000000</color>
-    <color name="card">#FF1F1F24</color>
-    <color name="text_primary">#FFF5F5F5</color>
-    <color name="text_secondary">#FFA0A0A8</color>
-    <color name="divider">#22FFFFFF</color>
-    <color name="background">#FF121216</color>
+    <color name="warning_bg">#FFFFF1E0</color>
+    <color name="warning_stroke">#66E8833A</color>
+    <color name="icon_top">#FFFFB86B</color>
+    <color name="icon_bottom">#FFEE7442</color>
 </resources>
