@@ -223,6 +223,8 @@ function showError(e) {
 }
 
 async function init() {
+  // 앱(WebView) 안에서는 APK 받기 링크를 숨긴다.
+  if (/; wv\)/.test(navigator.userAgent)) $("#apk").hidden = true;
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
     view = b.dataset.view;
     try { localStorage.setItem("view", view); } catch (_) { /* 저장 안 돼도 무방 */ }

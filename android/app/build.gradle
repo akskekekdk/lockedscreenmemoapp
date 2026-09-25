@@ -1,0 +1,35 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.josangwon.stock"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.josangwon.stock"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        // 앱이 여는 웹앱 주소 (GitHub Pages)
+        buildConfigField "String", "APP_URL", "\"https://akskekekdk.github.io/lockedscreenmemoapp/\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // 별도 서명 키가 없으면 디버그 키로 서명해 바로 설치할 수 있게 한다.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

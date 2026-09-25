@@ -124,3 +124,5 @@ tr.total td { font-weight: 600; }
   .score .track { width: 40px; margin-right: 6px; }
   .score { min-width: 0; }
 }
+.apk { font-size: 13px; color: var(--accent); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; background: var(--card); }
+.apk[hidden] { display: none; }

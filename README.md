@@ -2,6 +2,7 @@
 
 코스피·코스닥 전 종목을 **평일 오전(09:50)·오후(15:50)** 에 한 번씩 분석해 웹앱(GitHub Pages)에 보여줍니다.
 휴대폰 브라우저에서 열고 **홈 화면에 추가**하면 "조상원 주식" 아이콘으로 앱처럼 설치됩니다.
+안드로이드는 사이트의 **안드로이드 앱(APK) 받기** 버튼으로 설치 파일을 받을 수도 있습니다.
 
 > 정해진 규칙으로 종목을 정렬하는 참고용 도구이며 투자 권유가 아닙니다.
 
@@ -82,6 +83,19 @@ python -m http.server -d public 8000   # http://localhost:8000
 
 옵션: `--top 30`(발표 종목 수), `--candidates 80`(FCF·기술 분석 후보 수), `--min-market-cap 1e11`(원 단위), `--min-trading-value 1e8`.
 
+## 안드로이드 앱(APK)
+
+`android/`는 웹앱 주소를 전체 화면으로 여는 WebView 앱입니다. 분석 결과는 웹에서 불러오므로 매일 결과가 바뀌어도 APK를 다시 설치할 필요가 없습니다. 외부 링크(네이버 종목 페이지)는 브라우저로 열립니다.
+
+```bash
+cd android
+echo "sdk.dir=$ANDROID_HOME" > local.properties
+./gradlew assembleRelease          # app/build/outputs/apk/release/app-release.apk
+cp app/build/outputs/apk/release/app-release.apk ../web/josangwon-stock.apk
+```
+
+디버그 키로 서명합니다. 다른 컴퓨터에서 다시 빌드한 APK는 서명이 달라서, 기존 앱을 지운 뒤 설치해야 합니다.
+
 ## 구조
 
 ```
@@ -90,6 +104,7 @@ screener/dart.py       OpenDART 수집(재시도 포함), 계정 추출, 현금�
 screener/scoring.py    재무 지표, 필터, 업종 내 백분위 점수, 경고
 screener/technical.py  이동평균·RSI·MACD·볼린저·ATR, 신호, 시장 국면, 손절·비중
 screener/main.py       실행 진입점, DART 캐시, 결과 JSON·히스토리 저장
-web/                   웹앱 (index.html, app.js, style.css, manifest.json, 아이콘)
+web/                   웹앱 (index.html, app.js, style.css, manifest.json, 아이콘, APK)
+android/               안드로이드 WebView 앱
 .github/workflows/screener.yml  평일 2회 실행 후 gh-pages에 게시
 ```
