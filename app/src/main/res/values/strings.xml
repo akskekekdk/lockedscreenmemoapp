@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">조상원 메모</string>
+    <string name="app_name">메모</string>
     <!-- 알림 맨 위에 시스템이 붙이는 앱 이름을 안 보이게 하려고 폭 0 공백(U+200B)을 쓴다. 빈 문자열이면 패키지 이름이 대신 나온다 -->
     <string name="app_label_hidden" translatable="false">&#8203;</string>
     <string name="tile_label">한 줄 메모</string>

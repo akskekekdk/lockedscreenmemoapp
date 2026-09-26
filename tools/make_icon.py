@@ -1,5 +1,5 @@
 """
-런처 아이콘(검정 배경 + 흰 글씨 "조상원 / 메 모")의 글자 윤곽 벡터를 만든다.
+런처 아이콘(검정 배경 + 흰 글씨 "메모")의 글자 윤곽 벡터를 만든다.
 
   pip install fonttools
   curl -Lo NotoSansKR.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf"
@@ -21,9 +21,9 @@ cmap = font.getBestCmap()
 glyphs = font.getGlyphSet()
 upm = font["head"].unitsPerEm
 
-# 3칸 격자: 윗줄 조 상 원 / 아랫줄 메 _ 모
-rows = [["조", "상", "원"], ["메", None, "모"]]
-EM = 16.0            # 한 칸(글자) 크기, dp 단위 (108dp 캔버스)
+# 칸 격자로 배치한다. None 은 빈칸. 예) [["조", "상", "원"], ["메", None, "모"]]
+rows = [["메", "모"]]
+EM = 23.0            # 한 칸(글자) 크기, dp 단위 (108dp 캔버스, 안전 영역은 가운데 지름 66dp 원)
 GAP = 5.0            # 두 줄 사이 간격
 scale = EM / upm
 
@@ -41,7 +41,8 @@ for row in rows:
 line_h = [(t - b) * scale for t, b in zip(line_tops, line_bottoms)]
 total_h = sum(line_h) + GAP
 top = 54 - total_h / 2
-left = 54 - EM * 3 / 2
+columns = max(len(row) for row in rows)
+left = 54 - EM * columns / 2
 
 parts = []
 y_cursor = top
@@ -66,7 +67,7 @@ def vector(color):
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- "조상원 / 메 모" (Noto Sans KR Bold, SIL OFL) 글자 윤곽 -->
+    <!-- "{" / ".join("".join(c or " " for c in row) for row in rows)}" (Noto Sans KR Bold, SIL OFL) 글자 윤곽 -->
     <path
         android:fillColor="{color}"
         android:pathData="{path}" />

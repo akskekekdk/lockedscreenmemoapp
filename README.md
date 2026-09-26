@@ -1,4 +1,4 @@
-# 조상원 메모 (Lock Screen One-Line Memo)
+# 메모 (Lock Screen One-Line Memo)
 
 휴대폰 **잠금을 풀지 않고** 잠금화면에서 바로 **한 줄 메모**를 남기는 안드로이드 앱입니다.
 
