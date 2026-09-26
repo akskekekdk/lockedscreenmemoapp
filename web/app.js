@@ -207,12 +207,20 @@ async function renderBacktest() {
     <div class="table-scroll"><table>
       <thead><tr><th class="left">방식</th><th>연수익</th><th>샤프</th><th>최대낙폭</th><th>월 승률</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
+    ${bt.models.new.years ? (() => {
+      const years = Object.keys(bt.models.new.years);
+      const cell = (v) => v == null ? `<td>${dash}</td>` : `<td class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : ""}${(v * 100).toFixed(0)}%</td>`;
+      return `<h3>연도별 수익률</h3><div class="table-scroll"><table>
+        <thead><tr><th class="left">방식</th>${years.map((y) => `<th>${y}${y === String(new Date(bt.period[1]).getFullYear()) ? "*" : ""}</th>`).join("")}</tr></thead>
+        <tbody>${["new", "old", "value", "bench"].map((k) => `<tr${k === "new" ? ' class="total"' : ""}><td class="left">${SHORT[k]}</td>${years.map((y) => cell(bt.models[k].years[y])).join("")}</tr>`).join("")}</tbody>
+        </table></div><p class="hint">* 해당 연도는 일부 기간. 첫 해는 ${bt.period[0].slice(0, 7)}부터.</p>`;
+    })() : ""}
     <ul class="hint">${["new", "old", "value", "bench"].map((k) => `<li>${SHORT[k]}: ${esc(bt.models[k].name.replace(/^[^:]+: ?/, ""))}</li>`).join("")}</ul>
     <h3>알게 된 것</h3><ul>${bt.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
     <details><summary>지표별 예측력(IC: 다음 달 수익률 순위와의 상관, t값 2 이상이면 의미 있음)</summary>
       <div class="ic-grid">
         <div><h3>가격 지표 · ${bt.tech_period[0].slice(0, 4)}~${bt.tech_period[1].slice(0, 4)}</h3><table><tbody>${ic(bt.ic_long)}</tbody></table></div>
-        <div><h3>재무+가격 · ${bt.period[0].slice(0, 7)}~</h3><table><tbody>${ic(bt.ic_fund)}</tbody></table></div>
+        <div><h3>재무+가격 · ${bt.period[0].slice(0, 7)}~${bt.period[1].slice(0, 7)}</h3><table><tbody>${ic(bt.ic_fund)}</tbody></table></div>
       </div></details>
     <p class="hint">한계: ${bt.limits.map(esc).join(" · ")}</p>`;
 }
