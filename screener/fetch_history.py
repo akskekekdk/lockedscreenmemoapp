@@ -11,6 +11,8 @@ import argparse
 import json
 import logging
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import scoring
@@ -41,22 +43,28 @@ def main(argv=None) -> int:
     except (FileNotFoundError, json.JSONDecodeError):
         data = {}
 
-    for year in range(first, last + 1):
-        key = str(year)
-        if key in data and len(data[key]) > 0.5 * len(targets):
-            log.info("%d년: 이미 %d개사 있음, 건너뜀", year, len(data[key]))
-            continue
+    lock = threading.Lock()
+    todo = [y for y in range(first, last + 1)
+            if not (str(y) in data and len(data[str(y)]) > 0.5 * len(targets))]
+    log.info("받을 연도: %s (이미 있는 연도는 건너뜀)", todo)
+
+    def one_year(year):
+        # 해외 서버에서는 DART 응답이 느려서, 연도별로 동시에 받는다.
+        client = DartClient(dart.api_key)
         records = []
         for i in range(0, len(targets), MULTI_BATCH):
             batch = targets[i:i + MULTI_BATCH]
-            rows = dart.multi_accounts([corp[c] for c in batch], year)
-            f = fundamentals_from_rows(rows)
+            f = fundamentals_from_rows(client.multi_accounts([corp[c] for c in batch], year))
             if not f.empty:
                 records += json.loads(f.to_json(orient="records"))
-        data[key] = records
+        with lock:
+            data[str(year)] = records
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")  # 연도마다 저장
         log.info("%d년 사업보고서: %d개사", year, len(records))
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")  # 연도마다 저장
+
+    with ThreadPoolExecutor(max(1, len(todo))) as ex:
+        list(ex.map(one_year, todo))
     return 0
 
 
