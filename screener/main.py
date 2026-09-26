@@ -1,4 +1,4 @@
-"""조상원 주식 스크리너 실행.
+"""국장 스크리너 실행.
 
 1) 시세·재무 수집 → 흑자·유동성 조건 통과 종목 선정
 2) 통과 종목 전체의 일봉으로 모멘텀·변동성 계산
@@ -44,7 +44,7 @@ OUTPUT_FIELDS = [
 
 
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="조상원 주식 스크리너")
+    p = argparse.ArgumentParser(description="국장 스크리너")
     p.add_argument("--out", default="public", help="사이트 출력 폴더")
     p.add_argument("--top", type=int, default=30, help="발표할 종목 수")
     p.add_argument("--min-market-cap", type=float, default=1000e8, help="최소 시가총액(원)")

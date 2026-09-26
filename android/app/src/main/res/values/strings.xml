@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">조상원 주식</string>
+    <string name="app_name">국장</string>
     <!-- 알림 맨 위에 붙는 앱 이름을 숨기기 위한 보이지 않는 이름(한글 채움 문자 U+3164).
          홈 화면 아이콘 이름은 실행 화면의 app_name을 쓴다. -->
     <string name="app_label_hidden">ㅤ</string>

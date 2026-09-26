@@ -10,8 +10,8 @@ android {
         applicationId "com.josangwon.stock"
         minSdk 26
         targetSdk 34
-        versionCode 9
-        versionName "1.8"
+        versionCode 10
+        versionName "1.9"
         // 앱이 여는 웹앱 주소 (GitHub Pages)
         buildConfigField "String", "APP_URL", "\"https://akskekekdk.github.io/lockedscreenmemoapp/\""
     }

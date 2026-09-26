@@ -32,7 +32,7 @@
         <receiver
             android:name=".TopWidgetProvider"
             android:exported="false"
-            android:label="조상원 주식 TOP3">
+            android:label="국장 TOP3">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

@@ -10,7 +10,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-/** 조상원 주식 웹앱(GitHub Pages)을 전체 화면으로 보여준다. 분석 결과는 웹에서 매번 새로 받는다. */
+/** 국장 웹앱(GitHub Pages)을 전체 화면으로 보여준다. 분석 결과는 웹에서 매번 새로 받는다. */
 public class MainActivity extends Activity {
 
     private static final String OFFLINE_PAGE =
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
     private void askNotificationSettings() {
         new android.app.AlertDialog.Builder(this)
                 .setTitle("알림이 꺼져 있어요")
-                .setMessage("상위 3종목을 알림창에 보려면 '조상원 주식' 알림을 켜 주세요. 소리나 팝업은 없습니다.")
+                .setMessage("상위 3종목을 알림창에 보려면 '국장' 알림을 켜 주세요. 소리나 팝업은 없습니다.")
                 .setPositiveButton("설정 열기", (d, w) -> {
                     try {
                         startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)

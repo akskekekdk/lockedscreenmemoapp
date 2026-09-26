@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="조상원 주식 TOP3"
+        android:text="국장 TOP3"
         android:textColor="#FFFFFF"
         android:textSize="13sp"
         android:textStyle="bold" />
