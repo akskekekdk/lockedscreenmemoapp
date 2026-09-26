@@ -314,26 +314,53 @@ function showError(e) {
   $("#table tbody").innerHTML = `<tr><td class="empty">아직 분석 결과가 없거나 불러오지 못했습니다. (${esc(e.message)})</td></tr>`;
 }
 
+// 안드로이드 앱(WebView)에서는 prompt/confirm 팝업이 뜨지 않을 수 있어 화면 안 입력창을 쓴다.
+function openSheet(html, onOk) {
+  const wrap = document.createElement("div");
+  wrap.className = "sheet-bg";
+  wrap.innerHTML = `<div class="sheet card" role="dialog" aria-modal="true">${html}
+    <div class="sheet-btns"><button type="button" class="cancel">취소</button><button type="button" class="ok">확인</button></div></div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
+  wrap.querySelector(".cancel").addEventListener("click", close);
+  wrap.querySelector(".ok").addEventListener("click", () => { if (onOk(wrap) !== false) close(); });
+  const input = wrap.querySelector("input");
+  if (input) {
+    input.focus();
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") wrap.querySelector(".ok").click(); });
+  }
+}
+
 function onMineClick(e) {
   const add = e.target.closest("button.add");
   const del = e.target.closest("button.del");
   if (!add && !del) return;
-  const list = loadMine();
   if (add) {
     const price = Number(add.dataset.price) || 0;
-    const input = window.prompt(`${add.dataset.name} 매수가(원)를 입력하세요`, price ? String(Math.round(price)) : "");
-    if (input == null) return;
-    const buyPrice = Number(String(input).replace(/[^0-9.]/g, ""));
-    if (!(buyPrice > 0)) { window.alert("매수가를 숫자로 입력해 주세요."); return; }
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-    list.push({ code: add.dataset.code, name: add.dataset.name, buyPrice, buyDate: today });
+    openSheet(`<h3>${esc(add.dataset.name)} 담기</h3>
+      <label>매수가(원)<input type="number" inputmode="decimal" min="0" step="any" value="${price ? Math.round(price) : ""}"></label>
+      <label>매수일<input type="date" value="${today}"></label>
+      <p class="hint err" hidden>매수가를 숫자로 입력해 주세요.</p>`, (w) => {
+      const [priceInput, dateInput] = w.querySelectorAll("input");
+      const buyPrice = Number(priceInput.value);
+      if (!(buyPrice > 0)) { w.querySelector(".err").hidden = false; return false; }
+      const list = loadMine().filter((m) => m.code !== add.dataset.code);
+      list.push({ code: add.dataset.code, name: add.dataset.name, buyPrice, buyDate: dateInput.value || today });
+      saveMine(list);
+      if (current) render(current);
+      $("#mine").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   } else {
+    const list = loadMine();
     const m = list.find((x) => x.code === del.dataset.code);
-    if (!m || !window.confirm(`${m.name}을(를) 내 보유 종목에서 뺄까요?`)) return;
-    list.splice(list.indexOf(m), 1);
+    if (!m) return;
+    openSheet(`<h3>${esc(m.name)}</h3><p>내 보유 종목에서 뺄까요?</p>`, () => {
+      saveMine(list.filter((x) => x.code !== m.code));
+      if (current) render(current);
+    });
   }
-  saveMine(list);
-  if (current) render(current);
 }
 
 async function init() {

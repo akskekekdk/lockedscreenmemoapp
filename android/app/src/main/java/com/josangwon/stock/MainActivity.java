@@ -60,6 +60,9 @@ public class MainActivity extends Activity {
             }
         }, "JosangwonApp");
 
+        // alert/confirm/prompt 같은 웹 팝업이 뜨게 한다(없으면 WebView가 조용히 무시한다).
+        webView.setWebChromeClient(new android.webkit.WebChromeClient());
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
