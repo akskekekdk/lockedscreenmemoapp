@@ -81,6 +81,23 @@ class ScreenshotTest {
     }
 
     @Test
+    fun dueAlertScreen() {
+        val intent = android.content.Intent(RuntimeEnvironment.getApplication(), DueAlertActivity::class.java)
+            .putExtra(DueAlertActivity.EXTRA_TEXT, "버스 타기")
+            .putExtra(DueAlarm.EXTRA_DUE, System.currentTimeMillis())
+        val activity = Robolectric.buildActivity(DueAlertActivity::class.java, intent).setup().get()
+        val root = activity.window.decorView
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(2340, View.MeasureSpec.EXACTLY),
+        )
+        root.layout(0, 0, 1080, 2340)
+        val bitmap = Bitmap.createBitmap(1080, 2340, Bitmap.Config.ARGB_8888)
+        root.draw(Canvas(bitmap))
+        File("build/due-alert.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    @Test
     fun launcherIcon() {
         val context = RuntimeEnvironment.getApplication()
         val size = 432

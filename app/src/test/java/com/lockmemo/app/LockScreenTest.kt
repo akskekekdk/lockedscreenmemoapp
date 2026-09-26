@@ -111,6 +111,28 @@ class LockScreenTest {
     }
 
     @Test
+    fun exactAlarmIsSetForTheNextDueTimeAndFiresAFullScreenSilentAlert() {
+        val now = System.currentTimeMillis()
+        MemoStore.all(context).forEach { MemoStore.remove(context, it) }
+        MemoStore.add(context, "나중", now + 5 * 60 * 60_000L)
+        MemoStore.add(context, "곧", now + 10 * 60_000L)
+        MemoNotifier.refresh(context)
+        val alarms = shadowOf(context.getSystemService(android.app.AlarmManager::class.java))
+        val next = alarms.scheduledAlarms.single { it.operation != null && it.operation.let { op -> shadowOf(op).savedIntent.action == DueAlarm.ACTION_DUE } }
+        val due = MemoStore.all(context).first { it.text == "곧" }.due!!
+        assertEquals(due, next.triggerAtTime)
+
+        // 알람이 울린 것처럼: 전체 화면 알림이 무음으로 뜬다
+        DueAlarm.alert(context, due)
+        val alert = shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID)
+        assertNotEquals(null, alert.fullScreenIntent)
+        val channel = manager.getNotificationChannel(alert.channelId)
+        assertEquals(null, channel.sound)
+        assertEquals(false, channel.shouldVibrate())
+        assertEquals("곧", alert.extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString())
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)

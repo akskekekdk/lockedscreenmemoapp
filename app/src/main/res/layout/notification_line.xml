@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 메모 한 줄: 왼쪽 "오늘 14:00 · 내용", 오른쪽 남은 시간(하루 이내면 실시간으로 줄어듦, 그보다 멀면 D-3) -->
+<!-- 접힌 알림(잠금화면)에도 3줄이 들어가도록 글씨를 작게 둔다.
+     메모 한 줄: 왼쪽 "오늘 14:00 · 내용", 오른쪽 남은 시간(하루 이내면 실시간으로 줄어듦, 그보다 멀면 D-3) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -15,7 +16,7 @@
         android:ellipsize="end"
         android:includeFontPadding="false"
         android:maxLines="1"
-        android:textSize="13sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/remain_static"
@@ -25,7 +26,7 @@
         android:layout_marginStart="8dp"
         android:includeFontPadding="false"
         android:maxLines="1"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:visibility="gone" />
 
     <Chronometer
@@ -36,6 +37,6 @@
         android:layout_marginStart="8dp"
         android:includeFontPadding="false"
         android:maxLines="1"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:visibility="gone" />
 </LinearLayout>

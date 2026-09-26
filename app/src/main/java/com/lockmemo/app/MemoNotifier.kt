@@ -86,6 +86,8 @@ object MemoNotifier {
         val alarms = context.getSystemService(AlarmManager::class.java)
         val refreshIntent = actionIntent(context, MemoActionReceiver.ACTION_REPOST, 4)
         val manager = NotificationManagerCompat.from(context)
+        // 정해진 시간 전체 화면 알림은 잠금화면 표시 설정과 상관없이 동작한다
+        DueAlarm.schedule(context, MemoStore.all(context))
         if (!MemoStore.isLockScreenEnabled(context)) {
             alarms.cancel(refreshIntent)
             ROW_IDS.forEach { manager.cancel(it) }

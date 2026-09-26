@@ -146,7 +146,10 @@ object DueFormat {
             val number = NumberPicker(activity).apply {
                 minValue = 0
                 maxValue = max
-                wrapSelectorWheel = false
+                // 0에서 위로 돌리면 최댓값(23시간, 59분)으로 넘어간다. 범위를 정한 뒤에 켜야 적용된다
+                wrapSelectorWheel = true
+                // 가운데 숫자를 누르면 키보드로 직접 입력할 수 있다
+                descendantFocusability = NumberPicker.FOCUS_AFTER_DESCENDANTS
             }
             addView(number)
             addView(TextView(activity).apply {
@@ -172,6 +175,8 @@ object DueFormat {
             .setTitle(R.string.pick_remaining_title)
             .setView(row)
             .setPositiveButton(android.R.string.ok) { _, _ ->
+                // 키보드로 입력 중인 숫자도 반영되도록 먼저 포커스를 뺀다
+                listOf(days, hours, minutes).forEach { (it.tag as NumberPicker).clearFocus() }
                 val total = (days.tag as NumberPicker).value * 1440L +
                     (hours.tag as NumberPicker).value * 60L +
                     (minutes.tag as NumberPicker).value

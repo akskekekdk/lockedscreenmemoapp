@@ -131,13 +131,31 @@ class MainActivity : Activity() {
     }
 
     /** 잠금화면 표시를 켰는데 알림 설정이 막고 있으면 원인과 설정 바로가기를 보여준다. */
+    /** 잠금화면 표시나 정해진 시간 전체 화면 알림을 막고 있는 설정이 있으면 원인과 바로가기를 보여준다. */
     private fun updateProblem() {
-        val reason = if (MemoStore.isLockScreenEnabled(this)) MemoNotifier.blockingReason(this) else null
+        val lockReason = if (MemoStore.isLockScreenEnabled(this)) MemoNotifier.blockingReason(this) else null
+        val fullScreenBlocked = lockReason == null && !DueAlarm.canUseFullScreen(this) &&
+            MemoStore.all(this).any { it.due != null && it.due > System.currentTimeMillis() }
+        val reason = lockReason ?: if (fullScreenBlocked) R.string.problem_full_screen else null
         findViewById<View>(R.id.problem_box).visibility = if (reason == null) View.GONE else View.VISIBLE
-        if (reason != null) findViewById<TextView>(R.id.problem_text).setText(reason)
+        if (reason == null) return
+        findViewById<TextView>(R.id.problem_text).setText(reason)
+        findViewById<View>(R.id.problem_tip).visibility = if (fullScreenBlocked) View.GONE else View.VISIBLE
+        findViewById<TextView>(R.id.open_settings).setText(
+            if (fullScreenBlocked) R.string.allow_full_screen else R.string.open_settings,
+        )
     }
 
     private fun openNotificationSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+            MemoNotifier.blockingReason(this) == null && !DueAlarm.canUseFullScreen(this)
+        ) {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                    .setData(android.net.Uri.parse("package:$packageName")),
+            )
+            return
+        }
         val notificationsOn = MemoNotifier.canNotify(this) &&
             NotificationManagerCompat.from(this).areNotificationsEnabled()
         val intent = if (notificationsOn) {
@@ -211,6 +229,7 @@ class MainActivity : Activity() {
             dueChooser.due = null
             reload()
             MemoNotifier.refresh(this)
+            updateProblem()
         }
     }
 
@@ -220,6 +239,7 @@ class MainActivity : Activity() {
             MemoStore.setDue(this, memo, due)
             reload()
             MemoNotifier.refresh(this)
+            updateProblem()
         }
         val options = mutableListOf(getString(R.string.change_due), getString(R.string.set_remaining))
         if (memo.due != null) options += getString(R.string.remove_due)
