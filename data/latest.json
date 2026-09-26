@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-26T06:28+09:00",
+ "generated_at": "2026-09-26T09:48+09:00",
  "session": "am",
  "price_source": "naver",
  "fiscal_year": 2025,
@@ -116,68 +116,7 @@
    "entry_date": "2026-09-26"
   }
  ],
- "events": [
-  {
-   "type": "in",
-   "code": "092230",
-   "name": "KPX홀딩스",
-   "reason": "점수 1위 편입"
-  },
-  {
-   "type": "in",
-   "code": "094840",
-   "name": "슈프리마에이치큐",
-   "reason": "점수 2위 편입"
-  },
-  {
-   "type": "in",
-   "code": "143240",
-   "name": "사람인",
-   "reason": "점수 3위 편입"
-  },
-  {
-   "type": "in",
-   "code": "037460",
-   "name": "삼지전자",
-   "reason": "점수 4위 편입"
-  },
-  {
-   "type": "in",
-   "code": "003380",
-   "name": "하림지주",
-   "reason": "점수 5위 편입"
-  },
-  {
-   "type": "in",
-   "code": "049430",
-   "name": "코메론",
-   "reason": "점수 6위 편입"
-  },
-  {
-   "type": "in",
-   "code": "003650",
-   "name": "미창석유",
-   "reason": "점수 7위 편입"
-  },
-  {
-   "type": "in",
-   "code": "267250",
-   "name": "HD현대",
-   "reason": "점수 8위 편입"
-  },
-  {
-   "type": "in",
-   "code": "013520",
-   "name": "화승코퍼레이션",
-   "reason": "점수 9위 편입"
-  },
-  {
-   "type": "in",
-   "code": "052330",
-   "name": "코텍",
-   "reason": "점수 10위 편입"
-  }
- ],
+ "events": [],
  "portfolio": [
   {
    "code": "092230",
@@ -324,7 +263,7 @@
    "high_52w": 0.9137,
    "dist_ma200": 0.1429,
    "rank": 1,
-   "prev_rank": null,
+   "prev_rank": 1,
    "signal": "매수 관심",
    "foreign_20d": -199393400.0,
    "institution_20d": 81258700.0
@@ -364,7 +303,7 @@
    "high_52w": 0.8229,
    "dist_ma200": 0.2947,
    "rank": 2,
-   "prev_rank": null,
+   "prev_rank": 2,
    "signal": "매수 관심",
    "foreign_20d": 60847630.0,
    "institution_20d": 1114167640.0
@@ -402,7 +341,7 @@
    "high_52w": 0.9813,
    "dist_ma200": 0.1255,
    "rank": 3,
-   "prev_rank": 28,
+   "prev_rank": 3,
    "signal": "매수 관심",
    "foreign_20d": -606869060.0,
    "institution_20d": 531468640.0
@@ -440,7 +379,7 @@
    "high_52w": 0.5417,
    "dist_ma200": 0.0593,
    "rank": 4,
-   "prev_rank": 19,
+   "prev_rank": 4,
    "signal": "매수 관심",
    "foreign_20d": -1658560000.0,
    "institution_20d": 3002730450.0
@@ -475,7 +414,7 @@
    "high_52w": 0.5655,
    "dist_ma200": -0.0775,
    "rank": 5,
-   "prev_rank": null,
+   "prev_rank": 5,
    "signal": "매수 관심",
    "foreign_20d": -4332834530.0,
    "institution_20d": 8857254590.0
@@ -512,7 +451,7 @@
    "high_52w": 0.985,
    "dist_ma200": 0.2656,
    "rank": 6,
-   "prev_rank": null,
+   "prev_rank": 6,
    "signal": "매수 관심",
    "foreign_20d": 375685250.0,
    "institution_20d": 2663333050.0
@@ -550,7 +489,7 @@
    "high_52w": 0.8141,
    "dist_ma200": -0.0159,
    "rank": 7,
-   "prev_rank": null,
+   "prev_rank": 7,
    "signal": "매수 관심",
    "foreign_20d": -716407100.0,
    "institution_20d": -89688100.0
@@ -585,7 +524,7 @@
    "high_52w": 0.6667,
    "dist_ma200": -0.1303,
    "rank": 8,
-   "prev_rank": null,
+   "prev_rank": 8,
    "signal": "매수 관심",
    "foreign_20d": -47266326500.0,
    "institution_20d": 44289926500.0
@@ -620,7 +559,7 @@
    "high_52w": 0.7252,
    "dist_ma200": -0.0345,
    "rank": 9,
-   "prev_rank": null,
+   "prev_rank": 9,
    "signal": "매수 관심",
    "foreign_20d": -699984065.0,
    "institution_20d": -56826655.0
@@ -658,7 +597,7 @@
    "high_52w": 0.748,
    "dist_ma200": -0.0423,
    "rank": 10,
-   "prev_rank": null,
+   "prev_rank": 10,
    "signal": "매수 관심",
    "foreign_20d": -741390690.0,
    "institution_20d": -12030110.0
@@ -696,7 +635,7 @@
    "high_52w": 0.6153,
    "dist_ma200": -0.0945,
    "rank": 11,
-   "prev_rank": null,
+   "prev_rank": 11,
    "signal": "후보",
    "foreign_20d": -316879250.0,
    "institution_20d": -21687160.0
@@ -731,7 +670,7 @@
    "high_52w": 0.9709,
    "dist_ma200": 0.0998,
    "rank": 12,
-   "prev_rank": null,
+   "prev_rank": 12,
    "signal": "후보",
    "foreign_20d": 256653550.0,
    "institution_20d": -69585845.0
@@ -768,7 +707,7 @@
    "high_52w": 0.8799,
    "dist_ma200": 0.1239,
    "rank": 13,
-   "prev_rank": null,
+   "prev_rank": 13,
    "signal": "후보",
    "foreign_20d": 207800250.0,
    "institution_20d": -357597350.0
@@ -803,7 +742,7 @@
    "high_52w": 0.9099,
    "dist_ma200": 0.3229,
    "rank": 14,
-   "prev_rank": null,
+   "prev_rank": 14,
    "signal": "후보",
    "foreign_20d": 752645100.0,
    "institution_20d": 2834414300.0
@@ -840,7 +779,7 @@
    "high_52w": 0.5317,
    "dist_ma200": -0.1023,
    "rank": 15,
-   "prev_rank": null,
+   "prev_rank": 15,
    "signal": "후보",
    "foreign_20d": -1185170775.0,
    "institution_20d": 384883015.0
@@ -875,7 +814,7 @@
    "high_52w": 0.8716,
    "dist_ma200": 0.0038,
    "rank": 16,
-   "prev_rank": 18,
+   "prev_rank": 16,
    "signal": "후보",
    "foreign_20d": 162121185.0,
    "institution_20d": 456373210.0
@@ -913,7 +852,7 @@
    "high_52w": 1.0,
    "dist_ma200": 0.1206,
    "rank": 17,
-   "prev_rank": null,
+   "prev_rank": 17,
    "signal": "후보",
    "foreign_20d": 605171200.0,
    "institution_20d": 314491100.0
@@ -951,7 +890,7 @@
    "high_52w": 0.7464,
    "dist_ma200": 0.0053,
    "rank": 18,
-   "prev_rank": null,
+   "prev_rank": 18,
    "signal": "후보",
    "foreign_20d": -6747070.0,
    "institution_20d": 173316550.0
@@ -988,7 +927,7 @@
    "high_52w": 0.643,
    "dist_ma200": -0.0612,
    "rank": 19,
-   "prev_rank": null,
+   "prev_rank": 19,
    "signal": "후보",
    "foreign_20d": -4763479744.0,
    "institution_20d": 1448812005.0
@@ -1025,7 +964,7 @@
    "high_52w": 0.6758,
    "dist_ma200": -0.1402,
    "rank": 20,
-   "prev_rank": null,
+   "prev_rank": 20,
    "signal": "후보",
    "foreign_20d": -257222030.0,
    "institution_20d": 15929010.0
@@ -1062,7 +1001,7 @@
    "high_52w": 0.8392,
    "dist_ma200": -0.0092,
    "rank": 21,
-   "prev_rank": null,
+   "prev_rank": 21,
    "signal": "관망",
    "foreign_20d": -3034190450.0,
    "institution_20d": 632353750.0
@@ -1099,7 +1038,7 @@
    "high_52w": 0.9764,
    "dist_ma200": 0.3484,
    "rank": 22,
-   "prev_rank": null,
+   "prev_rank": 22,
    "signal": "관망",
    "foreign_20d": 3655189300.0,
    "institution_20d": 1148001950.0
@@ -1134,7 +1073,7 @@
    "high_52w": 0.9664,
    "dist_ma200": 0.0677,
    "rank": 23,
-   "prev_rank": null,
+   "prev_rank": 23,
    "signal": "관망",
    "foreign_20d": -984279710.0,
    "institution_20d": 5820270.0
@@ -1171,7 +1110,7 @@
    "high_52w": 0.712,
    "dist_ma200": -0.0146,
    "rank": 24,
-   "prev_rank": null,
+   "prev_rank": 24,
    "signal": "관망",
    "foreign_20d": -429325500.0,
    "institution_20d": -21690100.0
@@ -1209,7 +1148,7 @@
    "high_52w": 0.8188,
    "dist_ma200": -0.0214,
    "rank": 25,
-   "prev_rank": null,
+   "prev_rank": 25,
    "signal": "관망",
    "foreign_20d": -234225550.0,
    "institution_20d": -23522500.0
@@ -1248,7 +1187,7 @@
    "high_52w": 0.6484,
    "dist_ma200": -0.0648,
    "rank": 26,
-   "prev_rank": null,
+   "prev_rank": 26,
    "signal": "관망",
    "foreign_20d": 2485195110.0,
    "institution_20d": -1581764250.0
@@ -1285,7 +1224,7 @@
    "high_52w": 0.6625,
    "dist_ma200": -0.1075,
    "rank": 27,
-   "prev_rank": null,
+   "prev_rank": 27,
    "signal": "관망",
    "foreign_20d": -641481790.0,
    "institution_20d": -242981830.0
@@ -1322,7 +1261,7 @@
    "high_52w": 0.8267,
    "dist_ma200": -0.0062,
    "rank": 28,
-   "prev_rank": null,
+   "prev_rank": 28,
    "signal": "관망",
    "foreign_20d": -2754715250.0,
    "institution_20d": 2215933800.0
@@ -1359,7 +1298,7 @@
    "high_52w": 0.8017,
    "dist_ma200": -0.0305,
    "rank": 29,
-   "prev_rank": null,
+   "prev_rank": 29,
    "signal": "관망",
    "foreign_20d": 1461419090.0,
    "institution_20d": -1498156915.0
@@ -1394,7 +1333,7 @@
    "high_52w": 0.4871,
    "dist_ma200": -0.0755,
    "rank": 30,
-   "prev_rank": null,
+   "prev_rank": 30,
    "signal": "관망",
    "foreign_20d": 18014050.0,
    "institution_20d": 838924120.0
