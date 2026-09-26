@@ -271,6 +271,9 @@ def build_report(args, now: datetime, market: pd.DataFrame, source: str, dart: D
         "regime": regime,
         "holdings": holdings,
         "events": events,
+        # 점수를 매긴 전체 종목(내 보유 종목이 30위 밖이어도 추적할 수 있게): 코드 → [순위, 점수, 신호, 가격, 이름]
+        "all": {code: [int(r["rank"]), round(float(r["score"]), 1), sig[code], float(r["price"]), r["name"]]
+                for code, r in ranked.iterrows()},
         "portfolio": portfolio,
         "stocks": stocks,
     }

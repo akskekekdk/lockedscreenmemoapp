@@ -67,6 +67,40 @@ function bar(v, cls = "") {
 function flagsHtml(s) {
   return (s.flags || []).map((f) => `<span class="flag${f === "흑자전환" ? " good" : ""}">${esc(f)}</span>`).join("");
 }
+// ---- 내 보유 종목 (이 기기에만 저장) ----
+const MY_KEY = "myStocks";
+function loadMine() {
+  try { return JSON.parse(localStorage.getItem(MY_KEY) || "[]"); } catch (_) { return []; }
+}
+function saveMine(list) {
+  try { localStorage.setItem(MY_KEY, JSON.stringify(list)); } catch (_) { /* 저장 불가 */ }
+  tellAppMine(list);
+}
+function tellAppMine(list) {
+  // 안드로이드 앱 안이면 알림창에도 내 종목을 보여주게 넘긴다.
+  try { if (window.JosangwonApp && window.JosangwonApp.setMyStocks) window.JosangwonApp.setMyStocks(JSON.stringify(list)); } catch (_) { /* 앱 밖 */ }
+}
+function lookup(report, code) {
+  const a = report.all && report.all[code];
+  if (a) return { rank: a[0], score: a[1], signal: a[2], price: a[3], name: a[4] };
+  const s = (report.stocks || []).find((x) => x.code === code);
+  return s ? { rank: s.rank, score: s.score, signal: s.signal, price: s.price, name: s.name } : null;
+}
+function mineStatus(report, m) {
+  const model = report.model || { keep_rank: 20, stop: 0.15 };
+  const info = lookup(report, m.code);
+  if (!info) return { info, sell: true, reason: "분석 대상에서 빠짐(적자·거래정지 등)" };
+  const ret = info.price / m.buyPrice - 1;
+  if (ret <= -model.stop) return { info, ret, sell: true, reason: `손절선(-${Math.round(model.stop * 100)}%) 도달` };
+  if (info.rank > model.keep_rank) return { info, ret, sell: true, reason: `순위 ${info.rank}위로 하락(${model.keep_rank}위 밖)` };
+  return { info, ret, sell: false, reason: `${info.rank}위 · ${info.signal}` };
+}
+function addButton(code, name, price) {
+  const mine = loadMine().some((m) => m.code === code);
+  return mine ? '<span class="chip buy">보유중</span>'
+    : `<button type="button" class="add" data-code="${esc(code)}" data-name="${esc(name)}" data-price="${price ?? ""}">담기</button>`;
+}
+
 function naverLink(code, name) {
   return `<a href="https://m.stock.naver.com/domestic/stock/${esc(code)}" target="_blank" rel="noopener">${esc(name)}</a>`;
 }
@@ -79,7 +113,7 @@ const VIEWS = {
       <td>${chip(s.signal, SIGNAL_CLASS[s.signal] || "wait")}</td>
       <td class="left score">${bar(s.score)}<b>${num(s.score)}</b></td>
       <td>${num(s.s_value, 0)}</td><td>${num(s.s_momentum, 0)}</td><td>${num(s.s_low_vol, 0)}</td>
-      <td class="left">${flagsHtml(s)}</td>`,
+      <td class="left">${addButton(s.code, s.name, s.price)} ${flagsHtml(s)}</td>`,
   },
   fund: {
     head: ["순위", "종목", "시가총액", "PER", "PBR", "ROE", "매출성장", "영업이익성장", "부채비율", "FCF수익률"],
@@ -129,6 +163,28 @@ function renderRegime(report) {
     <div class="stats">${idx}${fx}${ff}</div>`;
 }
 
+function renderMine(report) {
+  const list = loadMine();
+  if (!list.length) {
+    $("#mine").innerHTML = '<div class="empty card">아직 등록한 종목이 없습니다. 아래 추천 목록에서 <b>담기</b>를 눌러 보세요.</div>';
+    return;
+  }
+  const rows = list.map((m) => {
+    const st = mineStatus(report, m);
+    const price = st.info ? st.info.price : null;
+    return `<tr>
+      <td class="left name">${naverLink(m.code, m.name)}
+        <div class="status">${st.sell ? chip("매도 검토", "broken") : chip("보유 유지", "buy")} <small class="muted">${esc(st.reason)}</small></div></td>
+      <td>${num(m.buyPrice, 0)}<small class="block muted">${esc((m.buyDate || "").slice(5).replace("-", "."))}</small></td>
+      <td>${num(price, 0)}<small class="block">${st.ret == null ? dash : signedPct(st.ret)}</small></td>
+      <td><button type="button" class="del" data-code="${esc(m.code)}" aria-label="${esc(m.name)} 삭제">삭제</button></td></tr>`;
+  }).join("");
+  $("#mine").innerHTML = `<div class="table-scroll"><table>
+    <thead><tr><th class="left">종목 · 상태</th><th>매수가</th><th>현재가·수익률</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <p class="hint">매도 검토: 순위가 ${(report.model || {}).keep_rank || 20}위 밖으로 밀리거나 매수가 대비 -${Math.round(((report.model || {}).stop || 0.15) * 100)}%, 또는 적자 등으로 분석 대상에서 빠진 경우(백테스트와 같은 규칙). 가격은 분석 시점 기준이며, 앱 알림창은 30분마다 실시간 가격으로 갱신됩니다. 이 목록은 이 기기(앱·브라우저)에만 저장됩니다.</p>`;
+}
+
 function renderPortfolio(report) {
   const p = report.portfolio || [];
   const m = report.model || { hold: 10, keep_rank: 20, stop: 0.15 };
@@ -138,7 +194,7 @@ function renderPortfolio(report) {
     return;
   }
   const rows = p.map((x) => `<tr>
-      <td class="left name">${naverLink(x.code, x.name)}<small>${esc(x.code)} · ${x.rank ?? dash}위</small></td>
+      <td class="left name">${naverLink(x.code, x.name)}<small>${esc(x.code)} · ${x.rank ?? dash}위</small><div>${addButton(x.code, x.name, x.price)}</div></td>
       <td>${x.entry_date ? esc(x.entry_date.slice(5).replace("-", ".")) : dash}<small class="block muted">${num(x.entry_price, 0)}</small></td>
       <td>${num(x.price, 0)}</td>
       <td>${x.return == null ? dash : signedPct(x.return)}</td>
@@ -241,6 +297,7 @@ function render(report) {
   $("#summary").innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
 
   renderRegime(report);
+  renderMine(report);
   renderPortfolio(report);
   renderTable(report);
   renderMethod(report);
@@ -257,7 +314,31 @@ function showError(e) {
   $("#table tbody").innerHTML = `<tr><td class="empty">아직 분석 결과가 없거나 불러오지 못했습니다. (${esc(e.message)})</td></tr>`;
 }
 
+function onMineClick(e) {
+  const add = e.target.closest("button.add");
+  const del = e.target.closest("button.del");
+  if (!add && !del) return;
+  const list = loadMine();
+  if (add) {
+    const price = Number(add.dataset.price) || 0;
+    const input = window.prompt(`${add.dataset.name} 매수가(원)를 입력하세요`, price ? String(Math.round(price)) : "");
+    if (input == null) return;
+    const buyPrice = Number(String(input).replace(/[^0-9.]/g, ""));
+    if (!(buyPrice > 0)) { window.alert("매수가를 숫자로 입력해 주세요."); return; }
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+    list.push({ code: add.dataset.code, name: add.dataset.name, buyPrice, buyDate: today });
+  } else {
+    const m = list.find((x) => x.code === del.dataset.code);
+    if (!m || !window.confirm(`${m.name}을(를) 내 보유 종목에서 뺄까요?`)) return;
+    list.splice(list.indexOf(m), 1);
+  }
+  saveMine(list);
+  if (current) render(current);
+}
+
 async function init() {
+  document.addEventListener("click", onMineClick);
+  tellAppMine(loadMine());
   // 앱(WebView) 안에서는 APK 받기 링크를 숨긴다.
   if (/; wv\)/.test(navigator.userAgent)) $("#apk").hidden = true;
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {

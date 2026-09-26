@@ -51,6 +51,13 @@ public class MainActivity extends Activity {
                 TopStocks.setSort(MainActivity.this, sort);
                 UpdateJobService.updateNow(MainActivity.this, null);
             }
+
+            @android.webkit.JavascriptInterface
+            public void setMyStocks(String json) {
+                if (json == null || json.equals(TopStocks.mine(MainActivity.this).toString())) return;
+                TopStocks.setMine(MainActivity.this, json);
+                UpdateJobService.updateNow(MainActivity.this, null);
+            }
         }, "JosangwonApp");
 
         webView.setWebViewClient(new WebViewClient() {

@@ -26,6 +26,13 @@ final class TopStocks {
     static final class Item {
         String code, name, signal;
         double price, changePct;
+        double buyPrice = Double.NaN;  // 내 보유 종목일 때 매수가
+        boolean sell;                   // 내 보유 종목: 매도 검토 대상
+        String reason = "";             // 내 보유 종목: 상태 설명(예: 3위, 20위 밖, 손절선)
+
+        double ret() {
+            return Double.isNaN(buyPrice) || buyPrice <= 0 ? Double.NaN : price / buyPrice - 1;
+        }
     }
 
     final List<Item> items = new ArrayList<>();
@@ -34,6 +41,25 @@ final class TopStocks {
     String regime = "";
     String updatedAt = "";    // 갱신 시각 (예: 09.26(토) 01:54)
     boolean buyList;          // true면 items가 매수 관심 목록, false면 상위 종목
+    boolean mine;             // true면 items가 사용자가 등록한 내 보유 종목
+    private static final String KEY_MINE = "my_stocks";
+
+    /** 웹앱에서 등록한 내 보유 종목([{code,name,buyPrice,buyDate}]) 저장. */
+    static void setMine(Context c, String json) {
+        try {
+            new JSONArray(json);  // 형식 확인
+            prefs(c).edit().putString(KEY_MINE, json).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    static JSONArray mine(Context c) {
+        try {
+            return new JSONArray(prefs(c).getString(KEY_MINE, "[]"));
+        } catch (Exception e) {
+            return new JSONArray();
+        }
+    }
 
     static final String SORT_SCORE = "score";
     static final String SORT_BUY = "buy";
@@ -76,7 +102,34 @@ final class TopStocks {
         if (!t.buyList) picked = stocks.subList(0, Math.min(COUNT, stocks.size()));
         t.updatedAt = new java.text.SimpleDateFormat("MM.dd(E) HH:mm", java.util.Locale.KOREA).format(new java.util.Date());
 
+        // 내 보유 종목이 있으면 그것을 보여준다(30위 밖이어도 전체 순위표 all에서 찾는다).
+        JSONArray my = mine(c);
+        JSONObject all = report.optJSONObject("all");
+        JSONObject model = report.optJSONObject("model");
+        int keepRank = model == null ? 20 : model.optInt("keep_rank", 20);
+        double stop = model == null ? 0.15 : model.optDouble("stop", 0.15);
+        java.util.Map<String, Integer> ranks = new java.util.HashMap<>();
         StringBuilder codes = new StringBuilder();
+        if (my.length() > 0) {
+            t.mine = true;
+            for (int i = 0; i < my.length(); i++) {
+                JSONObject m = my.getJSONObject(i);
+                Item it = new Item();
+                it.code = m.getString("code");
+                it.name = m.optString("name", it.code);
+                it.buyPrice = m.optDouble("buyPrice", Double.NaN);
+                JSONArray a = all == null ? null : all.optJSONArray(it.code);
+                if (a != null) {
+                    ranks.put(it.code, a.optInt(0));
+                    it.signal = a.optString(2);
+                    it.price = a.optDouble(3, 0);
+                }
+                t.items.add(it);
+                if (codes.length() > 0) codes.append(',');
+                codes.append(it.code);
+            }
+            picked = new ArrayList<>();
+        }
         for (JSONObject s : picked) {
             Item it = new Item();
             it.code = s.getString("code");
@@ -121,6 +174,25 @@ final class TopStocks {
         } catch (Exception ignored) {
             // 시세 API가 막혀도 위젯은 분석 결과로 보여준다.
         }
+        if (t.mine) {
+            for (Item it : t.items) {
+                Integer rank = ranks.get(it.code);
+                double r = it.ret();
+                if (rank == null) {
+                    it.sell = true;
+                    it.reason = "분석 대상 제외";
+                } else if (!Double.isNaN(r) && r <= -stop) {
+                    it.sell = true;
+                    it.reason = "손절선 -" + Math.round(stop * 100) + "%";
+                } else if (rank > keepRank) {
+                    it.sell = true;
+                    it.reason = rank + "위(" + keepRank + "위 밖)";
+                } else {
+                    it.reason = rank + "위";
+                }
+                it.signal = it.sell ? "매도 검토" : "보유 유지";
+            }
+        }
         return t;
     }
 
@@ -128,11 +200,13 @@ final class TopStocks {
         try {
             JSONObject o = new JSONObject();
             o.put("analyzedAt", analyzedAt).put("pricedAt", pricedAt).put("regime", regime)
-                    .put("updatedAt", updatedAt).put("buyList", buyList);
+                    .put("updatedAt", updatedAt).put("buyList", buyList).put("mine", mine);
             JSONArray arr = new JSONArray();
             for (Item it : items) {
-                arr.put(new JSONObject().put("code", it.code).put("name", it.name).put("signal", it.signal)
-                        .put("price", it.price).put("changePct", it.changePct));
+                JSONObject o2 = new JSONObject().put("code", it.code).put("name", it.name).put("signal", it.signal)
+                        .put("price", it.price).put("changePct", it.changePct).put("sell", it.sell).put("reason", it.reason);
+                if (!Double.isNaN(it.buyPrice)) o2.put("buyPrice", it.buyPrice);
+                arr.put(o2);
             }
             o.put("items", arr);
             prefs(c).edit().putString(KEY, o.toString()).apply();
@@ -151,6 +225,7 @@ final class TopStocks {
             t.pricedAt = o.optString("pricedAt");
             t.updatedAt = o.optString("updatedAt");
             t.buyList = o.optBoolean("buyList");
+            t.mine = o.optBoolean("mine");
             t.regime = o.optString("regime");
             JSONArray arr = o.getJSONArray("items");
             for (int i = 0; i < arr.length(); i++) {
@@ -161,6 +236,9 @@ final class TopStocks {
                 it.signal = j.optString("signal");
                 it.price = j.optDouble("price");
                 it.changePct = j.optDouble("changePct");
+                it.buyPrice = j.optDouble("buyPrice", Double.NaN);
+                it.sell = j.optBoolean("sell");
+                it.reason = j.optString("reason");
                 t.items.add(it);
             }
             return t;

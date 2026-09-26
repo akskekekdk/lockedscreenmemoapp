@@ -139,3 +139,11 @@ tr.total td { font-weight: 600; }
 .ic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 8px; }
 .ic-grid table td { padding: 4px 8px; }
 #backtest table { margin-bottom: 8px; }
+button.add, button.del {
+  font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--accent); background: transparent; color: var(--accent); white-space: nowrap;
+}
+button.del { border-color: var(--line); color: var(--muted); }
+td.name button.add, td.name .chip { margin-top: 4px; }
+td.name .status { margin-top: 4px; white-space: normal; }
+td.name .status small { display: inline; }

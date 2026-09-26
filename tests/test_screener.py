@@ -199,6 +199,7 @@ def test_build_report_end_to_end(tmp_path):
     assert {h["code"] for h in report["holdings"]} == {"005930", "000660"}
     assert all(p["weight"] == 0.1 and p["stop"] == pytest.approx(p["entry_price"] * 0.85) for p in report["portfolio"])
     assert [e["type"] for e in report["events"]] == ["in", "in"]
+    assert set(report["all"]) == {"005930", "000660"} and report["all"]["005930"][2] == "매수 관심"
 
     saved = json.loads((tmp_path / "data" / "latest.json").read_text(encoding="utf-8"))
     assert saved == json.loads((tmp_path / "data" / "history" / "2026-09-25-pm.json").read_text(encoding="utf-8"))

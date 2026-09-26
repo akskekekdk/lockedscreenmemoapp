@@ -53,17 +53,25 @@ final class LockScreenNotifier {
         RemoteViews big = new RemoteViews(c.getPackageName(), R.layout.notif_top3);
         big.removeAllViews(R.id.lines);
         SpannableStringBuilder summary = new SpannableStringBuilder();
-        if (t.buyList) summary.append("매수 관심 ").append(String.valueOf(t.items.size())).append("종목  ");
+        if (t.mine) {
+            int sells = 0;
+            for (TopStocks.Item it : t.items) if (it.sell) sells++;
+            summary.append("내 종목 ").append(String.valueOf(t.items.size())).append("개");
+            if (sells > 0) summary.append(" · 매도 검토 ").append(String.valueOf(sells));
+            summary.append("  ");
+        } else if (t.buyList) {
+            summary.append("매수 관심 ").append(String.valueOf(t.items.size())).append("종목  ");
+        }
         for (int i = 0; i < t.items.size(); i++) {
             TopStocks.Item it = t.items.get(i);
             RemoteViews row = new RemoteViews(c.getPackageName(), R.layout.notif_line);
-            row.setTextViewText(R.id.line, line(i + 1, it, !t.buyList));
+            row.setTextViewText(R.id.line, t.mine ? mineLine(it) : line(i + 1, it, !t.buyList));
             big.addView(R.id.lines, row);
             if (i > 0) summary.append("  ");
-            summary.append(it.name).append(' ').append(change(it));
+            summary.append(it.name).append(' ').append(t.mine ? pct(it.ret()) : change(it));
         }
         String time = t.updatedAt.isEmpty() ? "" : t.updatedAt + " 기준";
-        if (!t.buyList) time = "매수 관심 종목 없음 · 종합 상위 " + t.items.size() + "종목" + (time.isEmpty() ? "" : " · " + time);
+        if (!t.buyList && !t.mine) time = "매수 관심 종목 없음 · 종합 상위 " + t.items.size() + "종목" + (time.isEmpty() ? "" : " · " + time);
         big.setTextViewText(R.id.time, time);
         RemoteViews small = new RemoteViews(c.getPackageName(), R.layout.notif_top3_small);
         small.setTextViewText(R.id.summary, summary);
@@ -94,6 +102,28 @@ final class LockScreenNotifier {
         b.append(change(it));
         if (withSignal && !it.signal.isEmpty()) b.append("  [").append(it.signal).append(']');
         return b;
+    }
+
+    /** "슈프리마  55,400원 +3.20%  보유 유지 · 3위" — 수익률은 매수가 대비, 매도 검토는 빨갛게 */
+    private static CharSequence mineLine(TopStocks.Item it) {
+        SpannableStringBuilder b = new SpannableStringBuilder();
+        b.append(String.format(Locale.KOREA, "%s  %,.0f원 ", it.name, it.price));
+        b.append(pct(it.ret()));
+        SpannableString st = new SpannableString("  " + it.signal + " · " + it.reason);
+        if (it.sell) {
+            st.setSpan(new ForegroundColorSpan(0xFFE5484D), 0, st.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            st.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, st.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        b.append(st);
+        return b;
+    }
+
+    private static CharSequence pct(double r) {
+        if (Double.isNaN(r)) return "–";
+        SpannableString s = new SpannableString(String.format(Locale.KOREA, "%+.2f%%", r * 100));
+        int color = r > 0 ? 0xFFE5484D : r < 0 ? 0xFF3E7BFA : 0xFF888888;
+        s.setSpan(new ForegroundColorSpan(color), 0, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return s;
     }
 
     private static CharSequence change(TopStocks.Item it) {
