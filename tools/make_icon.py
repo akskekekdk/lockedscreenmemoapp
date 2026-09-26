@@ -23,7 +23,8 @@ upm = font["head"].unitsPerEm
 
 # 칸 격자로 배치한다. None 은 빈칸. 예) [["조", "상", "원"], ["메", None, "모"]]
 rows = [["메", "모"]]
-EM = 23.0            # 한 칸(글자) 크기, dp 단위 (108dp 캔버스, 안전 영역은 가운데 지름 66dp 원)
+EM = 23.0            # 글자 크기, dp 단위 (108dp 캔버스, 안전 영역은 가운데 지름 66dp 원)
+PITCH = EM * 0.92    # 칸 간격 = 글자 폭(920/1000). 글자끼리 붙여서 배치
 GAP = 5.0            # 두 줄 사이 간격
 scale = EM / upm
 
@@ -39,10 +40,10 @@ for row in rows:
     line_tops.append(max(b[3] for b in bs))
     line_bottoms.append(min(b[1] for b in bs))
 line_h = [(t - b) * scale for t, b in zip(line_tops, line_bottoms)]
-total_h = sum(line_h) + GAP
+total_h = sum(line_h) + GAP * (len(rows) - 1)  # 줄 사이 간격은 줄이 2개 이상일 때만
 top = 54 - total_h / 2
 columns = max(len(row) for row in rows)
-left = 54 - EM * columns / 2
+left = 54 - PITCH * columns / 2
 
 parts = []
 y_cursor = top
@@ -53,7 +54,7 @@ for r, row in enumerate(rows):
             continue
         g = cmap[ord(ch)]
         adv = glyphs[g].width * scale
-        x = left + col * EM + (EM - adv) / 2
+        x = left + col * PITCH + (PITCH - adv) / 2
         pen = SVGPathPen(glyphs, ntos=lambda v: ("%.2f" % v).rstrip("0").rstrip("."))
         glyphs[g].draw(TransformPen(pen, (scale, 0, 0, -scale, x, baseline)))
         parts.append(pen.getCommands())
@@ -76,4 +77,4 @@ def vector(color):
 res = os.path.join(os.path.dirname(__file__), "..", "app", "src", "main", "res", "drawable") + os.sep
 open(res + "ic_launcher_foreground.xml", "w").write(vector("#FFFFFFFF"))
 open(res + "ic_launcher_monochrome.xml", "w").write(vector("#FF000000"))
-print("path chars:", len(path), "block", left, top, EM * 3, total_h)
+print("path chars:", len(path), "block", left, top, PITCH * columns, total_h)
