@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 알림창 접힌 모양: 한 줄 요약 -->
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/summary"
-    style="@style/NotifLine"
-    android:layout_gravity="center_vertical" />
+<!-- 알림창 접힌 모양(잠금화면): 작은 글씨로 3줄. 접힌 알림 높이(약 48dp) 안에 들어가게 줄 간격을 줄인다. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center_vertical"
+    android:orientation="vertical">
+    <TextView android:id="@+id/small1" style="@style/NotifSmallLine" />
+    <TextView android:id="@+id/small2" style="@style/NotifSmallLine" />
+    <TextView android:id="@+id/small3" style="@style/NotifSmallLine" />
+</LinearLayout>

@@ -10,6 +10,7 @@ import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import java.util.Locale;
@@ -73,8 +74,17 @@ final class LockScreenNotifier {
         String time = t.updatedAt.isEmpty() ? "" : t.updatedAt + " 기준";
         if (!t.buyList && !t.mine) time = "매수 관심 종목 없음 · 종합 상위 " + t.items.size() + "종목" + (time.isEmpty() ? "" : " · " + time);
         big.setTextViewText(R.id.time, time);
+        // 접힌 모양(잠금화면)도 한 줄에 한 종목씩, 작은 글씨로 앞 3개를 보여준다.
         RemoteViews small = new RemoteViews(c.getPackageName(), R.layout.notif_top3_small);
-        small.setTextViewText(R.id.summary, summary);
+        int[] smallIds = {R.id.small1, R.id.small2, R.id.small3};
+        for (int i = 0; i < smallIds.length; i++) {
+            if (i < t.items.size()) {
+                TopStocks.Item it = t.items.get(i);
+                small.setTextViewText(smallIds[i], t.mine ? mineLine(it) : line(i + 1, it, !t.buyList));
+            } else {
+                small.setViewVisibility(smallIds[i], View.GONE);
+            }
+        }
 
         PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
