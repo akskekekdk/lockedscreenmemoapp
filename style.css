@@ -147,3 +147,13 @@ button.del { border-color: var(--line); color: var(--muted); }
 td.name button.add, td.name .chip { margin-top: 4px; }
 td.name .status { margin-top: 4px; white-space: normal; }
 td.name .status small { display: inline; }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: flex-end; justify-content: center; z-index: 50; padding: 16px; }
+.sheet { width: 100%; max-width: 420px; padding: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.sheet h3 { margin-top: 0; }
+.sheet label { display: block; margin: 10px 0; font-size: 14px; color: var(--muted); }
+.sheet input { display: block; width: 100%; margin-top: 4px; padding: 10px; font: inherit; font-size: 16px;
+  color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.sheet .err { color: var(--up); }
+.sheet-btns { display: flex; gap: 8px; margin-top: 12px; }
+.sheet-btns button { flex: 1; padding: 10px; font: inherit; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+.sheet-btns .ok { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
