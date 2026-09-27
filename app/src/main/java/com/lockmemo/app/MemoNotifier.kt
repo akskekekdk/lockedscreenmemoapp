@@ -163,7 +163,8 @@ object MemoNotifier {
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(linesView(context, rows.take(COLLAPSED_LINES), now))
             .setCustomBigContentView(linesView(context, rows.take(EXPANDED_LINES), now))
-            .setContentIntent(openQuickMemo)
+            // 알림을 누르면 앱 첫 화면으로. 잠겨 있으면 시스템이 잠금 해제를 먼저 요청한다
+            .setContentIntent(openApp(context))
             .setOngoing(true)
             // Android 14+에서 사용자가 밀어서 지워도 다시 띄운다
             .setDeleteIntent(actionIntent(context, MemoActionReceiver.ACTION_REPOST, 3))
@@ -225,6 +226,14 @@ object MemoNotifier {
         }
         return view
     }
+
+    private fun openApp(context: Context): PendingIntent =
+        PendingIntent.getActivity(
+            context, 5,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun actionIntent(context: Context, action: String, requestCode: Int): PendingIntent {
         val intent = Intent(context, MemoActionReceiver::class.java).setAction(action)

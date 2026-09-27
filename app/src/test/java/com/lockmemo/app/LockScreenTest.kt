@@ -133,6 +133,13 @@ class LockScreenTest {
     }
 
     @Test
+    fun tappingTheNotificationOpensTheApp() {
+        MemoNotifier.refresh(context)
+        val tap = shadowOf(manager).allNotifications.single().contentIntent
+        assertEquals(MainActivity::class.java.name, shadowOf(tap).savedIntent.component?.className)
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)
