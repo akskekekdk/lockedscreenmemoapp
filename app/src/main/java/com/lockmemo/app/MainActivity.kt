@@ -98,6 +98,11 @@ class MainActivity : Activity() {
         }
         findViewById<View>(R.id.pick_background).setOnClickListener { chooseBackground() }
 
+        findViewById<TextView>(R.id.version_text).text = getString(R.string.version_label, BuildConfig.VERSION_NAME)
+        findViewById<View>(R.id.update_button).setOnClickListener { UpdateChecker.check(this, manual = true) }
+        // 앱을 켤 때 가끔(6시간에 한 번) 새 버전이 있는지 조용히 확인한다
+        UpdateChecker.check(this, manual = false)
+
         if (MemoStore.isLockScreenEnabled(this)) requestNotificationPermissionIfNeeded()
     }
 
@@ -118,6 +123,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        UpdateChecker.resumePending(this)
         ticker.postDelayed(tick, 30_000)
         reload()
         MemoNotifier.refresh(this)

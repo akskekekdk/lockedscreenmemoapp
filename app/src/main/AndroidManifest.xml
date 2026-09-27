@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 앱 안 업데이트: 새 버전 확인·다운로드와 설치 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- 정해진 시간에 딱 맞춰 전체 화면 알림을 띄우기 위한 정확한 알람과 전체 화면 알림 -->
@@ -41,6 +44,16 @@
             android:theme="@style/QuickMemoTheme"
             android:turnScreenOn="true"
             android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <receiver
             android:name=".MemoActionReceiver"
