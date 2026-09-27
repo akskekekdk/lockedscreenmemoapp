@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 앱 안 업데이트로 내려받은 APK 를 설치 화면에 넘길 때 쓰는 경로 -->
-<paths>
-    <cache-path name="updates" path="updates/" />
-</paths>
