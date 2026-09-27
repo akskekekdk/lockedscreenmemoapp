@@ -68,7 +68,7 @@
     <string name="due_channel_name">정해진 시간 알림</string>
     <string name="due_channel_desc">정해진 시간이 되면 소리 없이 화면 전체에 메모를 띄웁니다.</string>
     <string name="due_now">지금이에요</string>
-    <string name="alert_dismiss">확인</string>
+    <string name="alert_dismiss">끄기</string>
     <string name="problem_full_screen">정해진 시간에 화면 전체로 알려주려면 \'전체 화면 알림\' 허용이 필요해요.</string>
     <string name="allow_full_screen">허용하러 가기</string>
     <string name="update_check">업데이트 확인</string>

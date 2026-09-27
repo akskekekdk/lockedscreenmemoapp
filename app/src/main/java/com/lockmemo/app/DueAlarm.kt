@@ -17,6 +17,10 @@ import androidx.core.app.NotificationManagerCompat
  */
 object DueAlarm {
     const val ACTION_DUE = "com.lockmemo.app.DUE"
+    const val ACTION_REPOST = "com.lockmemo.app.DUE_REPOST"
+    const val ACTION_DISMISS = "com.lockmemo.app.DUE_DISMISS"
+    private const val KEY_ACTIVE_TEXT = "active_text"
+    private const val KEY_ACTIVE_DUE = "active_due"
     const val EXTRA_DUE = "due"
     const val ALERT_NOTIFICATION_ID = 100
     private const val CHANNEL_ID = "due_alert"
@@ -66,13 +70,38 @@ object DueAlarm {
         )
     }
 
-    /** [due] 시각이 된 메모들을 전체 화면으로 보여준다. */
+    /** [due] 시각이 된 메모들을 전체 화면으로 보여준다. 끄기 전까지 계속 떠 있다. */
     fun alert(context: Context, due: Long) {
         // 같은 분에 정해진 메모는 함께 보여준다
         val memos = MemoStore.all(context).filter { it.due != null && it.due / 60_000 == due / 60_000 }
-        if (memos.isEmpty() || !MemoNotifier.canNotify(context)) return
-        ensureChannel(context)
+        if (memos.isEmpty()) return
         val text = memos.joinToString("\n") { it.text }
+        prefs(context).edit().putString(KEY_ACTIVE_TEXT, text).putLong(KEY_ACTIVE_DUE, due).apply()
+        post(context, text, due)
+    }
+
+    /** 아직 끄지 않은 알림이 있으면 다시 띄운다(홈으로 나갔거나 알림을 밀어서 지웠을 때). */
+    fun repost(context: Context) {
+        val text = prefs(context).getString(KEY_ACTIVE_TEXT, null) ?: return
+        val manager = NotificationManagerCompat.from(context)
+        // 같은 알림을 고치기만 하면 전체 화면이 다시 뜨지 않아서, 지웠다가 새로 올린다
+        manager.cancel(ALERT_NOTIFICATION_ID)
+        post(context, text, prefs(context).getLong(KEY_ACTIVE_DUE, System.currentTimeMillis()))
+    }
+
+    /** 끄기: 알림을 없애고 더 이상 다시 띄우지 않는다. */
+    fun dismiss(context: Context) {
+        prefs(context).edit().remove(KEY_ACTIVE_TEXT).remove(KEY_ACTIVE_DUE).apply()
+        NotificationManagerCompat.from(context).cancel(ALERT_NOTIFICATION_ID)
+    }
+
+    fun isActive(context: Context) = prefs(context).contains(KEY_ACTIVE_TEXT)
+
+    private fun prefs(context: Context) = context.getSharedPreferences("due_alert", Context.MODE_PRIVATE)
+
+    private fun post(context: Context, text: String, due: Long) {
+        if (!MemoNotifier.canNotify(context)) return
+        ensureChannel(context)
         val open = PendingIntent.getActivity(
             context, 21,
             Intent(context, DueAlertActivity::class.java)
@@ -81,17 +110,34 @@ object DueAlarm {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val reposted = PendingIntent.getBroadcast(
+            context, 22,
+            Intent(context, Receiver::class.java).setAction(ACTION_REPOST),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        // 소리·진동은 채널에서 끈다. (setSilent 는 팝업·전체 화면까지 막을 수 있어 쓰지 않는다)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_memo)
             .setContentTitle(text.lineSequence().first())
             .setContentText(context.getString(R.string.due_now))
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSilent(true)
-            .setAutoCancel(true)
+            .setOngoing(true)
+            .setAutoCancel(false)
             .setContentIntent(open)
             .setFullScreenIntent(open, true)
+            // 밀어서 지워도 끄기 전까지는 다시 띄운다
+            .setDeleteIntent(reposted)
+            .addAction(
+                R.drawable.ic_memo,
+                context.getString(R.string.alert_dismiss),
+                PendingIntent.getBroadcast(
+                    context, 23,
+                    Intent(context, Receiver::class.java).setAction(ACTION_DISMISS),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
             .build()
         @Suppress("MissingPermission")
         NotificationManagerCompat.from(context).notify(ALERT_NOTIFICATION_ID, notification)
@@ -99,11 +145,16 @@ object DueAlarm {
 
     class Receiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != ACTION_DUE) return
-            val due = intent.getLongExtra(EXTRA_DUE, 0L)
-            if (due > 0) alert(context, due)
-            // 알림 줄(지남 표시)과 다음 알람을 갱신
-            MemoNotifier.refresh(context)
+            when (intent.action) {
+                ACTION_DUE -> {
+                    val due = intent.getLongExtra(EXTRA_DUE, 0L)
+                    if (due > 0) alert(context, due)
+                    // 알림 줄(지남 표시)과 다음 알람을 갱신
+                    MemoNotifier.refresh(context)
+                }
+                ACTION_REPOST -> repost(context)
+                ACTION_DISMISS -> dismiss(context)
+            }
         }
     }
 }

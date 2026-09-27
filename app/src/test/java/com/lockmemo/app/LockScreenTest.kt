@@ -130,6 +130,31 @@ class LockScreenTest {
         assertEquals(null, channel.sound)
         assertEquals(false, channel.shouldVibrate())
         assertEquals("곧", alert.extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString())
+        // 끄기 전까지 계속: 밀어서 못 지우는 알림 + 지워지면 다시 띄우는 신호
+        assertEquals(true, alert.flags and android.app.Notification.FLAG_ONGOING_EVENT != 0)
+        assertEquals(DueAlarm.ACTION_REPOST, shadowOf(alert.deleteIntent).savedIntent.action)
+
+        // 밀어서 지운 것처럼 → 다시 뜬다
+        manager.cancel(DueAlarm.ALERT_NOTIFICATION_ID)
+        DueAlarm.repost(context)
+        assertNotEquals(null, shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID))
+
+        // 전체 화면: 뒤로가기로는 안 닫히고 끄기로만 닫힌다
+        val screen = org.robolectric.Robolectric.buildActivity(
+            DueAlertActivity::class.java,
+            android.content.Intent(context, DueAlertActivity::class.java).putExtra(DueAlertActivity.EXTRA_TEXT, "곧"),
+        ).setup().get()
+        @Suppress("DEPRECATION")
+        screen.onBackPressed()
+        assertEquals(false, screen.isFinishing)
+        screen.findViewById<android.view.View>(R.id.alert_dismiss).performClick()
+        assertEquals(true, screen.isFinishing)
+        assertEquals(false, DueAlarm.isActive(context))
+        assertEquals(null, shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID))
+
+        // 끈 뒤에는 다시 띄우지 않는다
+        DueAlarm.repost(context)
+        assertEquals(null, shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID))
     }
 
     @Test

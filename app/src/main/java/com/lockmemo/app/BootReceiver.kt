@@ -12,7 +12,11 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_MY_PACKAGE_REPLACED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
-            -> MemoNotifier.refresh(context)
+            -> {
+                MemoNotifier.refresh(context)
+                // 끄지 않은 채 재부팅됐으면 정해진 시간 알림을 다시 띄운다
+                DueAlarm.repost(context)
+            }
         }
     }
 }
