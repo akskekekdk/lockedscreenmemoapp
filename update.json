@@ -1,6 +1,6 @@
 {
-  "versionCode": 26,
-  "versionName": "1.0.26",
-  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.26.apk",
-  "notes": "정해진 시간 알림이 끄기 전까지 계속 떠 있어요"
+  "versionCode": 27,
+  "versionName": "1.0.27",
+  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.27.apk",
+  "notes": "정해진 시간 알림을 화면 꽉 차게, 폰 쓰는 중에도 전체 화면으로"
 }
