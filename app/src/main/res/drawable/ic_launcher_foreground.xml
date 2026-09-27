@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- "메모" (Noto Sans KR Bold, SIL OFL) 글자 윤곽 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M34.38 45.54H42.78V59.34H34.38ZM39.94 47.93H37.23V56.96H39.94ZM49.16 43.35H52.07V64.65H49.16ZM41.25 51.09H46.03V53.56H41.25ZM44.82 43.69H47.68V63.7H44.82Z M54.94 59.71H74.23V62.19H54.94ZM63.03 55H66.08V60.29H63.03ZM56.96 44.93H72.12V55.39H56.96ZM69.11 47.35H59.97V52.97H69.11Z" />
+</vector>
