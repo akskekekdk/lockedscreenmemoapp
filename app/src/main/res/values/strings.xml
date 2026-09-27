@@ -46,7 +46,6 @@
     <string name="background_pick">사진 고르기</string>
     <string name="background_default">기본 배경(어두운 색)</string>
     <string name="background_failed">사진을 불러오지 못했어요</string>
-    <string name="owner_name">조상원</string>
     <string name="memo_title">메모</string>
     <string name="settings">설정</string>
     <string name="header_summary">%1$s · 메모 %2$d개</string>

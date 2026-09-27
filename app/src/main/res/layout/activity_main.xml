@@ -7,7 +7,7 @@
     android:paddingHorizontal="20dp"
     android:paddingTop="12dp">
 
-    <!-- 머리말: 조상원 / 메모 -->
+    <!-- 머리말: 메모 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -20,14 +20,6 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:letterSpacing="0.25"
-                android:text="@string/owner_name"
-                android:textColor="@color/accent"
-                android:textSize="14sp"
-                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
