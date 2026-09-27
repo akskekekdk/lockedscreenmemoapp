@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
@@ -99,15 +100,22 @@ object DueAlarm {
 
     private fun prefs(context: Context) = context.getSharedPreferences("due_alert", Context.MODE_PRIVATE)
 
+    /** '다른 앱 위에 표시'가 허용돼 있으면 폰을 쓰는 중에도 바로 전체 화면을 띄울 수 있다. */
+    fun canShowOverApps(context: Context) = Settings.canDrawOverlays(context)
+
     private fun post(context: Context, text: String, due: Long) {
+        val screen = Intent(context, DueAlertActivity::class.java)
+            .putExtra(DueAlertActivity.EXTRA_TEXT, text)
+            .putExtra(EXTRA_DUE, due)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+        if (canShowOverApps(context)) {
+            // 알림은 폰을 쓰는 중이면 위쪽 팝업으로만 뜨므로, 허용돼 있으면 전체 화면을 직접 연다
+            runCatching { context.startActivity(screen) }
+        }
         if (!MemoNotifier.canNotify(context)) return
         ensureChannel(context)
         val open = PendingIntent.getActivity(
-            context, 21,
-            Intent(context, DueAlertActivity::class.java)
-                .putExtra(DueAlertActivity.EXTRA_TEXT, text)
-                .putExtra(EXTRA_DUE, due)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
+            context, 21, screen,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val reposted = PendingIntent.getBroadcast(

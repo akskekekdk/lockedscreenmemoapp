@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.view.WindowManager
 import android.widget.TextView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,6 +33,7 @@ class DueAlertActivity : Activity() {
         // 끄기 전까지 화면이 꺼지지 않게
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_due_alert)
+        goFullScreen()
         findViewById<TextView>(R.id.alert_dismiss).setOnClickListener {
             dismissed = true
             DueAlarm.dismiss(this)
@@ -42,6 +46,26 @@ class DueAlertActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         show(intent)
+    }
+
+    /** 상태바·내비게이션 바를 숨기고 카메라 구멍 부분까지 화면을 꽉 채운다. */
+    private fun goFullScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            // 가장자리를 쓸어도 잠깐만 나타났다가 다시 숨는다
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) goFullScreen()
     }
 
     private fun show(intent: Intent) {

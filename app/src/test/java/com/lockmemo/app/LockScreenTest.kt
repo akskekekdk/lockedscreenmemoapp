@@ -165,6 +165,18 @@ class LockScreenTest {
     }
 
     @Test
+    fun withOverlayPermissionTheFullScreenOpensDirectlyEvenWhilePhoneIsInUse() {
+        val due = System.currentTimeMillis()
+        MemoStore.add(context, "버스", due)
+        org.robolectric.shadows.ShadowSettings.setCanDrawOverlays(true)
+        DueAlarm.alert(context, due)
+        val started = shadowOf(context).nextStartedActivity
+        assertEquals(DueAlertActivity::class.java.name, started.component?.className)
+        assertEquals("버스", started.getStringExtra(DueAlertActivity.EXTRA_TEXT))
+        DueAlarm.dismiss(context)
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)

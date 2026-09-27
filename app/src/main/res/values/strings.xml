@@ -89,4 +89,5 @@
     <string name="typed_empty">시간을 입력해 주세요</string>
     <string name="unit_seconds_label">초</string>
     <string name="set_typed">직접 입력으로 정하기</string>
+    <string name="problem_overlay">폰을 쓰는 중에도 정해진 시간 알림을 화면 전체로 띄우려면 \'다른 앱 위에 표시\' 허용이 필요해요. (허용 안 하면 위쪽 팝업으로 떠요)</string>
 </resources>

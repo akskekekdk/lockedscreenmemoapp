@@ -140,26 +140,39 @@ class MainActivity : Activity() {
     /** 잠금화면 표시나 정해진 시간 전체 화면 알림을 막고 있는 설정이 있으면 원인과 바로가기를 보여준다. */
     private fun updateProblem() {
         val lockReason = if (MemoStore.isLockScreenEnabled(this)) MemoNotifier.blockingReason(this) else null
-        val fullScreenBlocked = lockReason == null && !DueAlarm.canUseFullScreen(this) &&
-            MemoStore.all(this).any { it.due != null && it.due > System.currentTimeMillis() }
-        val reason = lockReason ?: if (fullScreenBlocked) R.string.problem_full_screen else null
+        val hasUpcoming = MemoStore.all(this).any { it.due != null && it.due > System.currentTimeMillis() }
+        val fullScreenBlocked = lockReason == null && hasUpcoming && !DueAlarm.canUseFullScreen(this)
+        val overlayBlocked = lockReason == null && !fullScreenBlocked && hasUpcoming && !DueAlarm.canShowOverApps(this)
+        pendingFix = when {
+            fullScreenBlocked -> Fix.FULL_SCREEN
+            overlayBlocked -> Fix.OVERLAY
+            else -> Fix.NOTIFICATIONS
+        }
+        val reason = lockReason ?: when (pendingFix) {
+            Fix.FULL_SCREEN -> R.string.problem_full_screen
+            Fix.OVERLAY -> R.string.problem_overlay
+            Fix.NOTIFICATIONS -> null
+        }
         findViewById<View>(R.id.problem_box).visibility = if (reason == null) View.GONE else View.VISIBLE
         if (reason == null) return
         findViewById<TextView>(R.id.problem_text).setText(reason)
-        findViewById<View>(R.id.problem_tip).visibility = if (fullScreenBlocked) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.problem_tip).visibility = if (pendingFix == Fix.NOTIFICATIONS) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.open_settings).setText(
-            if (fullScreenBlocked) R.string.allow_full_screen else R.string.open_settings,
+            if (pendingFix == Fix.NOTIFICATIONS) R.string.open_settings else R.string.allow_full_screen,
         )
     }
 
+    private enum class Fix { NOTIFICATIONS, FULL_SCREEN, OVERLAY }
+    private var pendingFix = Fix.NOTIFICATIONS
+
     private fun openNotificationSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-            MemoNotifier.blockingReason(this) == null && !DueAlarm.canUseFullScreen(this)
-        ) {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
-                    .setData(android.net.Uri.parse("package:$packageName")),
-            )
+        val appUri = android.net.Uri.parse("package:$packageName")
+        if (pendingFix == Fix.FULL_SCREEN && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).setData(appUri))
+            return
+        }
+        if (pendingFix == Fix.OVERLAY) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).setData(appUri))
             return
         }
         val notificationsOn = MemoNotifier.canNotify(this) &&
