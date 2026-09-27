@@ -177,6 +177,28 @@ class LockScreenTest {
     }
 
     @Test
+    fun testAlertFiresTenSecondsLaterAsAFullScreenAlert() {
+        DueAlarm.scheduleTest(context)
+        val alarms = shadowOf(context.getSystemService(android.app.AlarmManager::class.java))
+        val test = alarms.scheduledAlarms.single { shadowOf(it.operation).savedIntent.action == DueAlarm.ACTION_TEST }
+        val delay = test.triggerAtTime - System.currentTimeMillis()
+        assert(delay in 8_000..10_000) { "delay=$delay" }
+        // 울린 것처럼
+        DueAlarm.Receiver().onReceive(context, shadowOf(test.operation).savedIntent)
+        val alert = shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID)
+        assertNotEquals(null, alert.fullScreenIntent)
+        assertEquals(context.getString(R.string.test_alert_text), alert.extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString())
+        DueAlarm.dismiss(context)
+    }
+
+    @Test
+    fun permissionPanelListsWhatTheAlertNeeds() {
+        val labels = Permissions.all(context).map { context.getString(it.label) }
+        println("권한: " + Permissions.all(context).joinToString { context.getString(it.label) + "=" + it.granted })
+        assert(labels.containsAll(listOf("알림", "전체 화면 알림", "다른 앱 위에 표시", "정확한 시간 알람", "배터리 제한 없음", "업데이트 설치 허용")))
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)

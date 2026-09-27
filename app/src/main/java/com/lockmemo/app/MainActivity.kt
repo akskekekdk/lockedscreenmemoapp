@@ -66,6 +66,11 @@ class MainActivity : Activity() {
         val settingsCard = findViewById<View>(R.id.settings_card)
         findViewById<View>(R.id.settings_button).setOnClickListener {
             settingsCard.visibility = if (settingsCard.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            refreshPermissions()
+        }
+        findViewById<View>(R.id.test_alert_button).setOnClickListener {
+            DueAlarm.scheduleTest(this)
+            Toast.makeText(this, R.string.test_alert_scheduled, Toast.LENGTH_LONG).show()
         }
 
         val toggle = findViewById<Switch>(R.id.lockscreen_switch)
@@ -124,6 +129,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         UpdateChecker.resumePending(this)
+        refreshPermissions()
         ticker.postDelayed(tick, 30_000)
         reload()
         MemoNotifier.refresh(this)
@@ -141,38 +147,24 @@ class MainActivity : Activity() {
     private fun updateProblem() {
         val lockReason = if (MemoStore.isLockScreenEnabled(this)) MemoNotifier.blockingReason(this) else null
         val hasUpcoming = MemoStore.all(this).any { it.due != null && it.due > System.currentTimeMillis() }
-        val fullScreenBlocked = lockReason == null && hasUpcoming && !DueAlarm.canUseFullScreen(this)
-        val overlayBlocked = lockReason == null && !fullScreenBlocked && hasUpcoming && !DueAlarm.canShowOverApps(this)
-        pendingFix = when {
-            fullScreenBlocked -> Fix.FULL_SCREEN
-            overlayBlocked -> Fix.OVERLAY
-            else -> Fix.NOTIFICATIONS
-        }
-        val reason = lockReason ?: when (pendingFix) {
-            Fix.FULL_SCREEN -> R.string.problem_full_screen
-            Fix.OVERLAY -> R.string.problem_overlay
-            Fix.NOTIFICATIONS -> null
-        }
+        permissionsNeeded = lockReason == null && hasUpcoming && Permissions.alertBlocked(this)
+        val reason = lockReason ?: if (permissionsNeeded) R.string.problem_permissions else null
         findViewById<View>(R.id.problem_box).visibility = if (reason == null) View.GONE else View.VISIBLE
         if (reason == null) return
         findViewById<TextView>(R.id.problem_text).setText(reason)
-        findViewById<View>(R.id.problem_tip).visibility = if (pendingFix == Fix.NOTIFICATIONS) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.problem_tip).visibility = if (permissionsNeeded) View.GONE else View.VISIBLE
         findViewById<TextView>(R.id.open_settings).setText(
-            if (pendingFix == Fix.NOTIFICATIONS) R.string.open_settings else R.string.allow_full_screen,
+            if (permissionsNeeded) R.string.show_permissions else R.string.open_settings,
         )
     }
 
-    private enum class Fix { NOTIFICATIONS, FULL_SCREEN, OVERLAY }
-    private var pendingFix = Fix.NOTIFICATIONS
+    private var permissionsNeeded = false
 
     private fun openNotificationSettings() {
-        val appUri = android.net.Uri.parse("package:$packageName")
-        if (pendingFix == Fix.FULL_SCREEN && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).setData(appUri))
-            return
-        }
-        if (pendingFix == Fix.OVERLAY) {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).setData(appUri))
+        if (permissionsNeeded) {
+            // 설정 카드를 펼쳐서 권한 상태를 보여준다
+            findViewById<View>(R.id.settings_card).visibility = View.VISIBLE
+            refreshPermissions()
             return
         }
         val notificationsOn = MemoNotifier.canNotify(this) &&
@@ -185,6 +177,46 @@ class MainActivity : Activity() {
         }.putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
         startActivity(intent)
     }
+
+    /** 설정 카드의 권한 상태 목록: 허용된 건 ✓, 꺼진 건 [허용하기] 버튼. */
+    private fun refreshPermissions() {
+        val list = findViewById<android.widget.LinearLayout>(R.id.permission_list)
+        list.removeAllViews()
+        val pad = (8 * resources.displayMetrics.density).toInt()
+        Permissions.all(this).forEach { item ->
+            val row = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(0, pad, 0, pad)
+            }
+            row.addView(
+                TextView(this).apply {
+                    setText(item.label)
+                    setTextColor(getColor(R.color.text_primary))
+                    textSize = 14f
+                },
+                android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+            )
+            row.addView(
+                TextView(this).apply {
+                    textSize = 13f
+                    if (item.granted) {
+                        setText(R.string.perm_ok)
+                        setTextColor(getColor(R.color.text_secondary))
+                    } else {
+                        setText(R.string.perm_fix)
+                        setTextColor(getColor(R.color.accent))
+                        setTypeface(typeface, android.graphics.Typeface.BOLD)
+                        setBackgroundResource(R.drawable.bg_chip)
+                        setPadding(pad * 3 / 2, pad / 2, pad * 3 / 2, pad / 2)
+                        setOnClickListener { runCatching { startActivity(item.fix) } }
+                    }
+                },
+            )
+            list.addView(row)
+        }
+    }
+
 
     private fun setWallpaperMode(enabled: Boolean) {
         MemoStore.setWallpaperMode(this, enabled)

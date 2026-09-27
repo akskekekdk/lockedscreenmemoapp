@@ -42,6 +42,11 @@ class DueAlertActivity : Activity() {
         show(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        DueAlarm.removeOverlay(this)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

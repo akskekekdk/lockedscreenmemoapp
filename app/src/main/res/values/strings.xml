@@ -69,8 +69,6 @@
     <string name="due_channel_desc">정해진 시간이 되면 소리 없이 화면 전체에 메모를 띄웁니다.</string>
     <string name="due_now">지금이에요</string>
     <string name="alert_dismiss">끄기</string>
-    <string name="problem_full_screen">정해진 시간에 화면 전체로 알려주려면 \'전체 화면 알림\' 허용이 필요해요.</string>
-    <string name="allow_full_screen">허용하러 가기</string>
     <string name="update_check">업데이트 확인</string>
     <string name="version_label">버전 %1$s</string>
     <string name="update_checking">새 버전 확인 중…</string>
@@ -89,5 +87,18 @@
     <string name="typed_empty">시간을 입력해 주세요</string>
     <string name="unit_seconds_label">초</string>
     <string name="set_typed">직접 입력으로 정하기</string>
-    <string name="problem_overlay">폰을 쓰는 중에도 정해진 시간 알림을 화면 전체로 띄우려면 \'다른 앱 위에 표시\' 허용이 필요해요. (허용 안 하면 위쪽 팝업으로 떠요)</string>
+    <string name="perm_title">권한 상태</string>
+    <string name="perm_notifications">알림</string>
+    <string name="perm_full_screen">전체 화면 알림</string>
+    <string name="perm_overlay">다른 앱 위에 표시</string>
+    <string name="perm_exact_alarm">정확한 시간 알람</string>
+    <string name="perm_battery">배터리 제한 없음</string>
+    <string name="perm_install">업데이트 설치 허용</string>
+    <string name="perm_ok">✓ 허용됨</string>
+    <string name="perm_fix">허용하기</string>
+    <string name="test_alert">10초 뒤 알림 시험</string>
+    <string name="test_alert_scheduled">10초 뒤에 시험 알림이 떠요. 화면을 끄거나 다른 앱을 켜고 기다려 보세요</string>
+    <string name="test_alert_text">시험 알림이에요. 이렇게 떠요!</string>
+    <string name="problem_permissions">정해진 시간 알림이 제대로 뜨려면 켜야 할 권한이 있어요. ⚙ 설정의 \'권한 상태\'에서 허용해 주세요.</string>
+    <string name="show_permissions">권한 확인</string>
 </resources>
