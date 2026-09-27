@@ -1,6 +1,6 @@
 {
-  "versionCode": 25,
-  "versionName": "1.0.25",
-  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.25.apk",
-  "notes": "⌨ 직접 입력(일·시간·분·초), 앱 화면에서 이름 제거"
+  "versionCode": 26,
+  "versionName": "1.0.26",
+  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.26.apk",
+  "notes": "정해진 시간 알림이 끄기 전까지 계속 떠 있어요"
 }
