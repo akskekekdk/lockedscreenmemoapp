@@ -20,6 +20,7 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private boolean firstResume = true;
+    private int offeredVersion;  // 이번에 이미 업데이트를 안내한 버전(같은 버전은 다시 묻지 않는다)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,7 +68,8 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                if (uri.toString().startsWith(BuildConfig.APP_URL)) {
+                String url = uri.toString();
+                if (url.startsWith(BuildConfig.APP_URL) && !url.endsWith(".apk")) {
                     return false;
                 }
                 // 네이버 종목 페이지 등 외부 링크는 브라우저로 연다.
@@ -112,6 +114,56 @@ public class MainActivity extends Activity {
             webView.reload();
             UpdateJobService.updateNow(this, null);  // 설정에서 알림을 켜고 돌아왔을 때도 바로 뜨게
         }
+        checkAppUpdate();
+    }
+
+    /** GitHub Pages의 version.json을 보고 더 새 버전이 있으면 "업데이트" 버튼을 보여준다. */
+    private void checkAppUpdate() {
+        new Thread(() -> {
+            try {
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(
+                        BuildConfig.APP_URL + "version.json?t=" + System.currentTimeMillis()).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(8000);
+                c.setUseCaches(false);
+                String body;
+                try (java.io.InputStream in = c.getInputStream()) {
+                    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                    byte[] buf = new byte[4096];
+                    for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+                    body = out.toString("UTF-8");
+                } finally {
+                    c.disconnect();
+                }
+                org.json.JSONObject v = new org.json.JSONObject(body);
+                int code = v.getInt("versionCode");
+                if (code <= BuildConfig.VERSION_CODE || code == offeredVersion) return;
+                String apk = BuildConfig.APP_URL + v.optString("apk", "josangwon-stock.apk") + "?v=" + code;
+                runOnUiThread(() -> showUpdate(code, v.optString("versionName", ""), v.optString("notes", ""), apk));
+            } catch (Throwable e) {
+                android.util.Log.w("JosangwonStock", "update check", e);  // 오프라인 등은 조용히 넘어간다
+            }
+        }).start();
+    }
+
+    private void showUpdate(int code, String name, String notes, String apk) {
+        if (isFinishing() || code == offeredVersion) return;
+        offeredVersion = code;
+        String msg = "지금 " + BuildConfig.VERSION_NAME + " → 새 버전 " + name
+                + (notes.isEmpty() ? "" : "\n\n" + notes)
+                + "\n\n받은 파일을 열어 설치하면 기존 앱 위에 업데이트됩니다(내 종목 목록은 그대로).";
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("새 버전이 있어요")
+                .setMessage(msg)
+                .setPositiveButton("업데이트", (d, w) -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(apk)));
+                    } catch (Throwable e) {
+                        android.widget.Toast.makeText(this, "브라우저를 열 수 없습니다", android.widget.Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton("나중에", null)
+                .show();
     }
 
     private void startBackgroundUpdates() {

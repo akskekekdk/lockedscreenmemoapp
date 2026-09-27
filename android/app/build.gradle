@@ -10,8 +10,8 @@ android {
         applicationId "com.josangwon.stock"
         minSdk 26
         targetSdk 34
-        versionCode 14
-        versionName "2.3"
+        versionCode 15
+        versionName "2.4"
         // 앱이 여는 웹앱 주소 (GitHub Pages)
         buildConfigField "String", "APP_URL", "\"https://akskekekdk.github.io/lockedscreenmemoapp/\""
     }
@@ -20,11 +20,24 @@ android {
         buildConfig true
     }
 
+    // 저장소에 함께 둔 키로 서명한다. 어느 컴퓨터에서 빌드해도 서명이 같아야
+    // 이미 설치된 앱 위에 업데이트로 설치된다(키가 바뀌면 지우고 다시 설치해야 함).
+    signingConfigs {
+        shared {
+            storeFile rootProject.file("keystore/release.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
         release {
             minifyEnabled false
-            // 별도 서명 키가 없으면 디버그 키로 서명해 바로 설치할 수 있게 한다.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.shared
         }
     }
 

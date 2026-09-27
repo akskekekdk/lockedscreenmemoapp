@@ -91,7 +91,9 @@ cp app/build/outputs/apk/release/app-release.apk ../web/josangwon-stock.apk
 - **위젯**: 홈 화면에 "국장 TOP3" 위젯을 추가할 수 있습니다. 잠금화면 위젯을 지원하는 기기에서는 잠금화면에도 올릴 수 있습니다.
 - 30분마다(와이파이·데이터 연결 시) 최신 분석 결과와 네이버 실시간 시세로 갱신하고, 재부팅 후에도 이어갑니다.
 
-디버그 키로 서명합니다. 다른 컴퓨터에서 다시 빌드한 APK는 서명이 달라서, 기존 앱을 지운 뒤 설치해야 합니다.
+**업데이트**: 앱을 열 때 `version.json`(웹과 함께 게시)을 확인해 더 높은 `versionCode`가 있으면 "업데이트" 버튼을 보여주고, 누르면 새 APK를 받아 기존 앱 위에 설치합니다. 새 버전을 낼 때는 `android/app/build.gradle`의 `versionCode`·`versionName`과 `web/version.json`을 같이 올리고, 만든 APK를 `web/josangwon-stock.apk`에 복사합니다.
+
+**서명 키**: `android/keystore/release.keystore`(비밀번호 `android`)로 서명합니다. 어디서 빌드해도 서명이 같아야 업데이트로 설치되므로 저장소에 함께 둡니다. 저장소가 공개 상태라 누구나 같은 서명의 APK를 만들 수 있으니, APK는 이 사이트에서만 받으세요.
 
 ## 구조
 
