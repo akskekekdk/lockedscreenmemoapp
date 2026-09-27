@@ -24,13 +24,11 @@ class ScreenshotTest {
         MemoStore.add(context, "팀 회의 자료 챙기기", System.currentTimeMillis() + 3_600_000L)
     }
 
-    private fun capture(name: String, openSettings: Boolean = false) {
+    private fun capture(name: String, openSettings: Boolean = false, width: Int = 1080, height: Int = 2340) {
         seed()
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         if (openSettings) activity.findViewById<View>(R.id.settings_button).performClick()
         val root = activity.window.decorView
-        val width = 1080
-        val height = 2340
         root.measure(
             View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
@@ -43,6 +41,10 @@ class ScreenshotTest {
 
     @Test
     fun mainLight() = capture("screen-light")
+
+    @Test
+    @Config(qualifiers = "w360dp-h780dp-xxhdpi")
+    fun mainNarrow() = capture("screen-narrow", width = 1080, height = 2340)
 
     @Test
     @Config(qualifiers = "+night")

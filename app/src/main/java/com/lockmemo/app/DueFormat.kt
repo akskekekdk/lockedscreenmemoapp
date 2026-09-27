@@ -6,8 +6,13 @@ import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import android.text.InputFilter
+import android.text.InputType
 import android.text.format.DateFormat
 import android.view.Gravity
+import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
@@ -108,6 +113,86 @@ object DueFormat {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
+
+    /**
+     * 키보드로 "일 시간 분 초"를 직접 입력해 지금부터 그만큼 뒤로 정한다(초 단위까지).
+     * 칸마다 범위 제한은 없어서 "90분"처럼 넣어도 그대로 더한다.
+     */
+    fun pickTyped(activity: Activity, onPicked: (Long) -> Unit) {
+        val density = activity.resources.displayMetrics.density
+        val units = listOf(
+            R.string.unit_days_label to 86_400L,
+            R.string.unit_hours_label to 3_600L,
+            R.string.unit_minutes_label to 60L,
+            R.string.unit_seconds_label to 1L,
+        )
+        lateinit var dialog: AlertDialog
+        val fields = units.mapIndexed { index, _ ->
+            EditText(activity).apply {
+                inputType = InputType.TYPE_CLASS_NUMBER
+                filters = arrayOf(InputFilter.LengthFilter(4))
+                gravity = Gravity.CENTER
+                hint = "0"
+                textSize = 22f
+                setSelectAllOnFocus(true)
+                imeOptions = if (index == units.lastIndex) EditorInfo.IME_ACTION_DONE else EditorInfo.IME_ACTION_NEXT
+            }
+        }
+        fun total(): Long = fields.zip(units).sumOf { (field, unit) ->
+            (field.text.toString().toLongOrNull() ?: 0L) * unit.second
+        }
+        fun confirm() {
+            val seconds = total()
+            if (seconds <= 0) {
+                fields.first().error = activity.getString(R.string.typed_empty)
+                return
+            }
+            onPicked(System.currentTimeMillis() + seconds * 1000)
+            dialog.dismiss()
+        }
+        fields.last().setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                confirm()
+                true
+            } else {
+                false
+            }
+        }
+        val row = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val pad = (20 * density).toInt()
+            setPadding(pad, pad, pad, 0)
+            fields.zip(units).forEach { (field, unit) ->
+                addView(
+                    LinearLayout(activity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER_HORIZONTAL
+                        addView(field, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+                        addView(TextView(activity).apply {
+                            setText(unit.first)
+                            gravity = Gravity.CENTER
+                        })
+                    },
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginStart = (4 * density).toInt()
+                        marginEnd = (4 * density).toInt()
+                    },
+                )
+            }
+        }
+        dialog = AlertDialog.Builder(activity)
+            .setTitle(R.string.typed_title)
+            .setView(row)
+            .setPositiveButton(android.R.string.ok, null) // 빈 입력이면 닫지 않도록 아래에서 직접 처리
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { confirm() }
+            fields.first().requestFocus()
+        }
+        dialog.show()
+    }
 
     /** 지금부터 얼마 뒤인지 고른다(10분 후, 2시간 후 …). 결과는 그 시각(분 단위로 맞춤). */
     fun pickDuration(activity: Activity, onPicked: (Long) -> Unit) {

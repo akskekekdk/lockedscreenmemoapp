@@ -46,10 +46,10 @@
 
             <TextView
                 android:id="@+id/due_button"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_chip"
-                android:paddingHorizontal="14dp"
+                android:background="@drawable/bg_chip"                android:ellipsize="end"                android:gravity="center"                android:layout_weight="1"                android:maxLines="1"
+                android:paddingHorizontal="6dp"
                 android:paddingVertical="8dp"
                 android:text="@string/add_due"
                 android:textColor="@color/text_primary"
@@ -57,13 +57,25 @@
 
             <TextView
                 android:id="@+id/remain_button"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_chip"
-                android:paddingHorizontal="14dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_chip"                android:ellipsize="end"                android:gravity="center"                android:layout_weight="1"                android:maxLines="1"
+                android:paddingHorizontal="6dp"
                 android:paddingVertical="8dp"
                 android:text="@string/add_remaining"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/type_button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_chip"                android:ellipsize="end"                android:gravity="center"                android:layout_weight="1"                android:maxLines="1"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="8dp"
+                android:text="@string/add_typed"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp" />
 

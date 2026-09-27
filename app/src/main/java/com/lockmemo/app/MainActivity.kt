@@ -247,7 +247,11 @@ class MainActivity : Activity() {
             MemoNotifier.refresh(this)
             updateProblem()
         }
-        val options = mutableListOf(getString(R.string.change_due), getString(R.string.set_remaining))
+        val options = mutableListOf(
+            getString(R.string.change_due),
+            getString(R.string.set_remaining),
+            getString(R.string.set_typed),
+        )
         if (memo.due != null) options += getString(R.string.remove_due)
         AlertDialog.Builder(this)
             .setTitle(memo.text)
@@ -255,6 +259,7 @@ class MainActivity : Activity() {
                 when (which) {
                     0 -> DueFormat.pick(this, memo.due) { apply(it) }
                     1 -> DueFormat.pickDuration(this) { apply(it) }
+                    2 -> DueFormat.pickTyped(this) { apply(it) }
                     else -> apply(null)
                 }
             }
