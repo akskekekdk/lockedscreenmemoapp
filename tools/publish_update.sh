@@ -29,11 +29,11 @@ if git fetch -q origin "$BRANCH" 2>/dev/null; then
 else
   git worktree add -q --detach "$WORK"
   git -C "$WORK" checkout -q --orphan "$BRANCH"
-  git -C "$WORK" rm -rq . >/dev/null 2>&1 || true
 fi
 
-# 저장소가 커지지 않게 APK 는 최신 것만 둔다
-rm -f "$WORK"/memo-*.apk
+# 이 브랜치에는 update.json 과 최신 APK 하나만 둔다(소스 코드 X, 저장소가 커지지 않게)
+git -C "$WORK" rm -rq --cached . >/dev/null 2>&1 || true
+find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp "$APK" "$WORK/memo-$NAME.apk"
 python3 - "$WORK/update.json" "$CODE" "$NAME" "https://raw.githubusercontent.com/$REPO/$BRANCH/memo-$NAME.apk" "$NOTES" <<'PY'
 import json, sys
