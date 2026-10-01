@@ -20,6 +20,13 @@ import java.util.Locale
  */
 class DueAlertActivity : Activity() {
     private var dismissed = false
+    private val expiry = android.os.Handler(android.os.Looper.getMainLooper())
+    private val expire = Runnable {
+        // 끄지 않은 채 2시간이 지나면 저절로 닫는다
+        dismissed = true
+        DueAlarm.dismiss(this)
+        finish()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +52,16 @@ class DueAlertActivity : Activity() {
     override fun onResume() {
         super.onResume()
         DueAlarm.removeOverlay(this)
+        // 화면이 꺼져 있던 동안 2시간이 지났으면 바로 닫는다
+        if (!DueAlarm.isActive(this)) {
+            dismissed = true
+            finish()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        expiry.removeCallbacks(expire)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -80,6 +97,8 @@ class DueAlertActivity : Activity() {
             finish()
             return
         }
+        expiry.removeCallbacks(expire)
+        expiry.postDelayed(expire, (DueAlarm.expiresAt(this) - System.currentTimeMillis()).coerceAtLeast(0))
         val due = intent.getLongExtra(DueAlarm.EXTRA_DUE, System.currentTimeMillis())
         findViewById<TextView>(R.id.alert_time).text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(due))
         findViewById<TextView>(R.id.alert_text).text = intent.getStringExtra(EXTRA_TEXT).orEmpty()

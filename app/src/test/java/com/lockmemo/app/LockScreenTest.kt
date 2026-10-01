@@ -199,6 +199,28 @@ class LockScreenTest {
     }
 
     @Test
+    fun alertClearsItselfAfterTwoHours() {
+        val due = System.currentTimeMillis()
+        MemoStore.add(context, "오래 떠 있는 알림", due)
+        DueAlarm.alert(context, due)
+        assertEquals(true, DueAlarm.isActive(context))
+        val alert = shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID)
+        assert(alert.timeoutAfter in (DueAlarm.MAX_ALERT_MS - 5_000)..DueAlarm.MAX_ALERT_MS)
+
+        // 2시간 뒤 알람이 울리도록 걸려 있다
+        val alarms = shadowOf(context.getSystemService(android.app.AlarmManager::class.java))
+        val expiry = alarms.scheduledAlarms.single { shadowOf(it.operation).savedIntent.action == DueAlarm.ACTION_EXPIRE }
+        assertEquals(DueAlarm.expiresAt(context), expiry.triggerAtTime)
+
+        // 1시간 59분: 아직 떠 있음 / 2시간: 지워짐, 다시 띄우지도 않음
+        assertEquals(true, DueAlarm.isActive(context, DueAlarm.expiresAt(context) - 60_000))
+        assertEquals(false, DueAlarm.isActive(context, DueAlarm.expiresAt(context)))
+        assertEquals(null, shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID))
+        DueAlarm.repost(context)
+        assertEquals(null, shadowOf(manager).getNotification(DueAlarm.ALERT_NOTIFICATION_ID))
+    }
+
+    @Test
     fun wallpaperModeLeavesOnlyTheInputNotification() {
         MemoStore.setWallpaperMode(context, true)
         MemoNotifier.refresh(context)

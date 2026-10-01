@@ -30,6 +30,11 @@ object DueAlarm {
     const val ACTION_TEST = "com.lockmemo.app.DUE_TEST"
     private const val KEY_ACTIVE_TEXT = "active_text"
     private const val KEY_ACTIVE_DUE = "active_due"
+    private const val KEY_ACTIVE_STARTED = "active_started"
+    const val ACTION_EXPIRE = "com.lockmemo.app.DUE_EXPIRE"
+
+    /** 끄지 않아도 이 시간이 지나면 알림을 저절로 지운다. */
+    const val MAX_ALERT_MS = 2 * 60 * 60_000L
     const val EXTRA_DUE = "due"
     const val ALERT_NOTIFICATION_ID = 100
     private const val CHANNEL_ID = "due_alert"
@@ -112,12 +117,40 @@ object DueAlarm {
     }
 
     private fun alertText(context: Context, text: String, due: Long) {
-        prefs(context).edit().putString(KEY_ACTIVE_TEXT, text).putLong(KEY_ACTIVE_DUE, due).apply()
+        val now = System.currentTimeMillis()
+        prefs(context).edit()
+            .putString(KEY_ACTIVE_TEXT, text)
+            .putLong(KEY_ACTIVE_DUE, due)
+            .putLong(KEY_ACTIVE_STARTED, now)
+            .apply()
+        scheduleExpiry(context, now + MAX_ALERT_MS)
         post(context, text, due)
+    }
+
+    /** 알림이 저절로 지워지는 시각(뜬 지 2시간 뒤). 떠 있는 알림이 없으면 0. */
+    fun expiresAt(context: Context): Long {
+        val started = prefs(context).getLong(KEY_ACTIVE_STARTED, 0L)
+        return if (started == 0L) 0L else started + MAX_ALERT_MS
+    }
+
+    private fun expiryIntent(context: Context) = PendingIntent.getBroadcast(
+        context, 26,
+        Intent(context, Receiver::class.java).setAction(ACTION_EXPIRE),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun scheduleExpiry(context: Context, at: Long) {
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()) {
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, expiryIntent(context))
+        } else {
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, expiryIntent(context))
+        }
     }
 
     /** 아직 끄지 않은 알림이 있으면 다시 띄운다(홈으로 나갔거나 알림을 밀어서 지웠을 때). */
     fun repost(context: Context) {
+        if (!isActive(context)) return
         val text = prefs(context).getString(KEY_ACTIVE_TEXT, null) ?: return
         val manager = NotificationManagerCompat.from(context)
         // 같은 알림을 고치기만 하면 전체 화면이 다시 뜨지 않아서, 지웠다가 새로 올린다
@@ -127,11 +160,21 @@ object DueAlarm {
 
     /** 끄기: 알림을 없애고 더 이상 다시 띄우지 않는다. */
     fun dismiss(context: Context) {
-        prefs(context).edit().remove(KEY_ACTIVE_TEXT).remove(KEY_ACTIVE_DUE).apply()
+        prefs(context).edit().remove(KEY_ACTIVE_TEXT).remove(KEY_ACTIVE_DUE).remove(KEY_ACTIVE_STARTED).apply()
+        context.getSystemService(AlarmManager::class.java).cancel(expiryIntent(context))
         NotificationManagerCompat.from(context).cancel(ALERT_NOTIFICATION_ID)
     }
 
-    fun isActive(context: Context) = prefs(context).contains(KEY_ACTIVE_TEXT)
+    /** 끄지 않은 알림이 있는지. 뜬 지 2시간이 지났으면 지우고 false. */
+    fun isActive(context: Context, now: Long = System.currentTimeMillis()): Boolean {
+        if (!prefs(context).contains(KEY_ACTIVE_TEXT)) return false
+        val expires = expiresAt(context)
+        if (expires != 0L && now >= expires) {
+            dismiss(context)
+            return false
+        }
+        return true
+    }
 
     private fun prefs(context: Context) = context.getSharedPreferences("due_alert", Context.MODE_PRIVATE)
 
@@ -203,6 +246,11 @@ object DueAlarm {
             .setFullScreenIntent(open, true)
             // 밀어서 지워도 끄기 전까지는 다시 띄운다
             .setDeleteIntent(reposted)
+            // 끄지 않아도 처음 뜬 지 2시간이 지나면 저절로 사라진다
+            .apply {
+                val left = expiresAt(context) - System.currentTimeMillis()
+                if (left > 0) setTimeoutAfter(left)
+            }
             .addAction(
                 R.drawable.ic_memo,
                 context.getString(R.string.alert_dismiss),
@@ -229,6 +277,7 @@ object DueAlarm {
                 ACTION_REPOST -> repost(context)
                 ACTION_TEST -> alertText(context, context.getString(R.string.test_alert_text), intent.getLongExtra(EXTRA_DUE, System.currentTimeMillis()))
                 ACTION_DISMISS -> dismiss(context)
+                ACTION_EXPIRE -> dismiss(context)
             }
         }
     }
