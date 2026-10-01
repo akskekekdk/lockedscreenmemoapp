@@ -1,6 +1,6 @@
 {
-  "versionCode": 28,
-  "versionName": "1.0.28",
-  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.28.apk",
-  "notes": "정해진 시간 알림을 더 확실하게 + 권한 상태 화면 + 10초 알림 시험"
+  "versionCode": 29,
+  "versionName": "1.0.29",
+  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.29.apk",
+  "notes": "정해진 시간 알림이 2시간 지나면 저절로 꺼져요"
 }
