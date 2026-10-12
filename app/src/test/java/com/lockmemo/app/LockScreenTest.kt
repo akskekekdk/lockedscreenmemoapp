@@ -130,8 +130,11 @@ class LockScreenTest {
         assertEquals(null, channel.sound)
         assertEquals(false, channel.shouldVibrate())
         assertEquals("곧", alert.extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString())
-        // 끄기 전까지 계속: 밀어서 못 지우는 알림 + 지워지면 다시 띄우는 신호
-        assertEquals(true, alert.flags and android.app.Notification.FLAG_ONGOING_EVENT != 0)
+        // 워치로 전달되도록 고정 알림이 아니고, 대신 지워지면 다시 띄우는 신호로 끄기 전까지 유지
+        assertEquals(false, alert.flags and android.app.Notification.FLAG_ONGOING_EVENT != 0)
+        assertEquals(false, alert.flags and android.app.Notification.FLAG_LOCAL_ONLY != 0)
+        // 워치에서도 누를 수 있는 "끄기" 버튼
+        assertEquals(context.getString(R.string.alert_dismiss), alert.actions.single().title.toString())
         assertEquals(DueAlarm.ACTION_REPOST, shadowOf(alert.deleteIntent).savedIntent.action)
 
         // 밀어서 지운 것처럼 → 다시 뜬다

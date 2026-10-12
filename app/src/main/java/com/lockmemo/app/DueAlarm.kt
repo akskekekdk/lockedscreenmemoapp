@@ -240,8 +240,11 @@ object DueAlarm {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true)
+            // 고정(ongoing) 알림은 갤럭시 워치로 전달되지 않아서 고정하지 않는다.
+            // 대신 밀어서 지우면 아래 deleteIntent 로 다시 띄워, 끄기 전까지 계속 남게 한다.
+            .setOngoing(false)
             .setAutoCancel(false)
+            .setLocalOnly(false)
             .setContentIntent(open)
             .setFullScreenIntent(open, true)
             // 밀어서 지워도 끄기 전까지는 다시 띄운다
