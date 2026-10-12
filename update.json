@@ -1,6 +1,6 @@
 {
-  "versionCode": 29,
-  "versionName": "1.0.29",
-  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.29.apk",
-  "notes": "정해진 시간 알림이 2시간 지나면 저절로 꺼져요"
+  "versionCode": 30,
+  "versionName": "1.0.30",
+  "apk": "https://raw.githubusercontent.com/akskekekdk/lockedscreenmemoapp/memo-releases/memo-1.0.30.apk",
+  "notes": "정해진 시간 알림이 갤럭시 워치에도 와요"
 }
